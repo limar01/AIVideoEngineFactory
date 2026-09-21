@@ -1,0 +1,54 @@
+# Provider Configurations
+# Each provider has its own configuration file
+
+# Mock Provider (for testing)
+mock:
+  enabled: true
+  generation_time_seconds: 5
+  success_rate: 0.95
+  max_daily_generations: 1000
+  clip_duration_limits:
+    min: 2
+    max: 30
+  resolution_limits:
+    - "480p"
+    - "720p"
+    - "1080p"
+  supported_models:
+    - "mock-fast"
+    - "mock-quality"
+  reset_time_utc: "00:00"
+  concurrent_limit: 5
+
+# SnapGen Provider Configuration Template
+snapgen:
+  enabled: false
+  base_url: "https://snapgen.example.com"
+  browser_timeout: 60000
+  generation_timeout: 300000
+  download_timeout: 120000
+  max_daily_generations: 10  # Example free-tier limit
+  clip_duration_limits:
+    min: 3
+    max: 10
+  resolution_limits:
+    - "480p"
+    - "720p"
+  supported_models:
+    - "veo3.1-fast"
+    - "veo3.1-quality"
+  reset_time_utc: "00:00"  # Daily reset time
+  concurrent_limit: 1
+  require_auth: true
+  session_storage: "./sessions/snapgen"
+  
+# Add more providers here as needed
+# Each provider must define:
+# - enabled: boolean
+# - max_daily_generations: int (or null for unlimited)
+# - clip_duration_limits: {min, max}
+# - resolution_limits: list
+# - supported_models: list
+# - reset_time_utc: string (HH:MM format)
+# - concurrent_limit: int
+# - Additional provider-specific settings

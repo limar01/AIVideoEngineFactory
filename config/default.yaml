@@ -1,0 +1,69 @@
+# AI Video Factory Configuration
+
+# Application Settings
+app:
+  name: "AI Video Factory"
+  version: "1.0.0"
+  debug: false
+  log_level: "INFO"
+
+# Database Configuration
+database:
+  url: "sqlite+aiosqlite:///./database/ai_video_factory.db"
+  echo: false
+
+# Server Configuration
+server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+
+# Storage Paths
+storage:
+  projects_dir: "./projects"
+  downloads_dir: "./downloads"
+  output_dir: "./output"
+  sessions_dir: "./sessions"
+  logs_dir: "./logs"
+
+# Default Generation Settings
+defaults:
+  clip_duration: 8
+  aspect_ratio: "16:9"
+  resolution: "720p"
+  language: "English"
+  output_format: "mp4"
+
+# Retry Configuration
+retry:
+  max_retries: 3
+  retry_delay: 5
+  exponential_backoff: true
+
+# Quota Check Interval (seconds)
+quota:
+  check_interval: 60
+  warning_threshold: 2
+
+# Browser Automation
+browser:
+  headless: false
+  timeout: 30000
+  slow_mo: 100
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+
+# FFmpeg Settings
+ffmpeg:
+  path: "ffmpeg"
+  ffprobe_path: "ffprobe"
+  threads: 4
+  preset: "medium"
+  crf: 23
+
+# Security
+security:
+  secret_key: "CHANGE_ME_IN_PRODUCTION"
+  session_expire_minutes: 60
+  max_upload_size_mb: 100
+
+# Provider-specific configurations are stored separately in providers/

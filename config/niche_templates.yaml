@@ -1,0 +1,297 @@
+# Niche Templates Configuration
+# Each template defines the story structure for a specific genre/niche
+
+templates:
+  drama_romance:
+    name: "Drama / Romance"
+    description: "Emotional storytelling with relationship focus"
+    structure:
+      - type: "HOOK"
+        duration_ratio: 0.1
+        description: "Compelling opening that grabs attention"
+      - type: "MEET"
+        duration_ratio: 0.15
+        description: "Characters meet"
+      - type: "RELATIONSHIP"
+        duration_ratio: 0.2
+        description: "Relationship develops"
+      - type: "CONFLICT"
+        duration_ratio: 0.15
+        description: "Conflict arises"
+      - type: "SEPARATION"
+        duration_ratio: 0.15
+        description: "Characters separate"
+      - type: "CLIMAX"
+        duration_ratio: 0.15
+        description: "Climactic moment"
+      - type: "RESOLUTION"
+        duration_ratio: 0.1
+        description: "Resolution and ending"
+
+  horror:
+    name: "Horror"
+    description: "Suspenseful and frightening narrative"
+    structure:
+      - type: "NORMAL_WORLD"
+        duration_ratio: 0.1
+        description: "Establish normal everyday life"
+      - type: "STRANGE_EVENT"
+        duration_ratio: 0.15
+        description: "First strange occurrence"
+      - type: "INVESTIGATION"
+        duration_ratio: 0.15
+        description: "Characters investigate"
+      - type: "ESCALATION"
+        duration_ratio: 0.2
+        description: "Tension escalates"
+      - type: "REVEAL"
+        duration_ratio: 0.15
+        description: "Horror revealed"
+      - type: "CLIMAX"
+        duration_ratio: 0.15
+        description: "Final confrontation"
+      - type: "ENDING"
+        duration_ratio: 0.1
+        description: "Resolution (hopeful or bleak)"
+
+  finance:
+    name: "Finance / Business"
+    description: "Educational content about money and business"
+    structure:
+      - type: "HOOK"
+        duration_ratio: 0.1
+        description: "Attention-grabbing problem statement"
+      - type: "PROBLEM"
+        duration_ratio: 0.15
+        description: "Define the financial problem"
+      - type: "EXPLANATION"
+        duration_ratio: 0.15
+        description: "Explain the concept"
+      - type: "EXAMPLE"
+        duration_ratio: 0.15
+        description: "Real-world example"
+      - type: "MISTAKE"
+        duration_ratio: 0.15
+        description: "Common mistake to avoid"
+      - type: "SOLUTION"
+        duration_ratio: 0.2
+        description: "Provide solution"
+      - type: "CTA"
+        duration_ratio: 0.1
+        description: "Call to action"
+
+  stickman:
+    name: "Stickman Animation"
+    description: "Simple stick figure animations with exaggerated actions"
+    structure:
+      - type: "HOOK"
+        duration_ratio: 0.1
+        description: "Quick engaging opener"
+      - type: "SETUP"
+        duration_ratio: 0.15
+        description: "Set up the scenario"
+      - type: "ACTION_1"
+        duration_ratio: 0.2
+        description: "First action sequence"
+      - type: "ACTION_2"
+        duration_ratio: 0.2
+        description: "Second action sequence"
+      - type: "CLIMAX"
+        duration_ratio: 0.2
+        description: "Biggest action moment"
+      - type: "RESOLUTION"
+        duration_ratio: 0.15
+        description: "Funny or satisfying ending"
+
+  kids_stories:
+    name: "Kids Stories"
+    description: "Child-friendly stories with clear morals"
+    structure:
+      - type: "INTRODUCTION"
+        duration_ratio: 0.1
+        description: "Introduce characters and setting"
+      - type: "PROBLEM"
+        duration_ratio: 0.15
+        description: "Present the problem"
+      - type: "ADVENTURE_1"
+        duration_ratio: 0.2
+        description: "First attempt to solve"
+      - type: "ADVENTURE_2"
+        duration_ratio: 0.2
+        description: "Second attempt"
+      - type: "CLIMAX"
+        duration_ratio: 0.2
+        description: "Final challenge"
+      - type: "RESOLUTION"
+        duration_ratio: 0.15
+        description: "Happy ending with lesson"
+
+  animal_stories:
+    name: "Animal Stories"
+    description: "Stories featuring animal protagonists"
+    structure:
+      - type: "INTRODUCTION"
+        duration_ratio: 0.1
+        description: "Introduce animal protagonist"
+      - type: "PROBLEM"
+        duration_ratio: 0.15
+        description: "Animal faces a problem"
+      - type: "JOURNEY_1"
+        duration_ratio: 0.2
+        description: "Start of adventure"
+      - type: "JOURNEY_2"
+        duration_ratio: 0.2
+        description: "Continued journey"
+      - type: "CLIMAX"
+        duration_ratio: 0.2
+        description: "Critical moment"
+      - type: "RESOLUTION"
+        duration_ratio: 0.15
+        description: "Successful resolution"
+
+  motivation:
+    name: "Motivation / Inspiration"
+    description: "Uplifting content to inspire action"
+    structure:
+      - type: "PROBLEM"
+        duration_ratio: 0.15
+        description: "Relatable struggle"
+      - type: "STRUGGLE"
+        duration_ratio: 0.2
+        description: "Deep dive into challenges"
+      - type: "TURNING_POINT"
+        duration_ratio: 0.2
+        description: "Moment of change"
+      - type: "LESSON"
+        duration_ratio: 0.25
+        description: "Key insight"
+      - type: "ACTION"
+        duration_ratio: 0.2
+        description: "Call to take action"
+
+  comedy:
+    name: "Comedy"
+    description: "Humorous content with punchlines"
+    structure:
+      - type: "SETUP"
+        duration_ratio: 0.15
+        description: "Establish normal situation"
+      - type: "MISUNDERSTANDING"
+        duration_ratio: 0.2
+        description: "Something goes wrong"
+      - type: "ESCALATION"
+        duration_ratio: 0.25
+        description: "Situation gets worse"
+      - type: "PUNCHLINE"
+        duration_ratio: 0.2
+        description: "Climactic funny moment"
+      - type: "RESOLUTION"
+        duration_ratio: 0.2
+        description: "Wrap up with humor"
+
+  educational:
+    name: "Educational"
+    description: "Teaching-focused content"
+    structure:
+      - type: "QUESTION"
+        duration_ratio: 0.1
+        description: "Pose interesting question"
+      - type: "EXPLANATION"
+        duration_ratio: 0.25
+        description: "Explain the concept"
+      - type: "DEMONSTRATION"
+        duration_ratio: 0.25
+        description: "Show how it works"
+      - type: "EXAMPLE"
+        duration_ratio: 0.2
+        description: "Provide examples"
+      - type: "SUMMARY"
+        duration_ratio: 0.2
+        description: "Recap key points"
+
+  history:
+    name: "History / Documentary"
+    description: "Historical events and contexts"
+    structure:
+      - type: "CONTEXT"
+        duration_ratio: 0.15
+        description: "Set historical context"
+      - type: "EVENT"
+        duration_ratio: 0.2
+        description: "Main event begins"
+      - type: "DEVELOPMENT"
+        duration_ratio: 0.25
+        description: "How events unfolded"
+      - type: "CONSEQUENCE"
+        duration_ratio: 0.25
+        description: "Results and impact"
+      - type: "SUMMARY"
+        duration_ratio: 0.15
+        description: "Historical significance"
+
+  mystery:
+    name: "Mystery / Thriller"
+    description: "Suspenseful mystery narratives"
+    structure:
+      - type: "QUESTION"
+        duration_ratio: 0.1
+        description: "Present the mystery"
+      - type: "CLUES_1"
+        duration_ratio: 0.2
+        description: "First clues discovered"
+      - type: "INVESTIGATION"
+        duration_ratio: 0.25
+        description: "Investigation deepens"
+      - type: "CLUES_2"
+        duration_ratio: 0.2
+        description: "More clues, red herrings"
+      - type: "REVEAL"
+        duration_ratio: 0.15
+        description: "Truth revealed"
+      - type: "RESOLUTION"
+        duration_ratio: 0.1
+        description: "Case closed"
+
+# Scene type definitions
+scene_types:
+  HOOK: "Opening scene designed to grab attention"
+  ESTABLISHING: "Sets the scene location and atmosphere"
+  CHARACTER_INTRODUCTION: "Introduces a character"
+  DIALOGUE: "Character conversation"
+  REACTION: "Character emotional response"
+  ACTION: "Physical action sequence"
+  TRANSITION: "Scene transition or passage of time"
+  MONTAGE: "Series of quick related scenes"
+  CLIMAX: "Peak tension or action"
+  RESOLUTION: "Wrapping up story elements"
+  NORMAL_WORLD: "Establishing normalcy before disruption"
+  STRANGE_EVENT: "First unusual occurrence"
+  INVESTIGATION: "Characters seeking answers"
+  ESCALATION: "Increasing tension or stakes"
+  REVEAL: "Important information disclosed"
+  MEET: "Characters meeting"
+  RELATIONSHIP: "Relationship development"
+  CONFLICT: "Conflict emergence"
+  SEPARATION: "Characters parting"
+  PROBLEM: "Problem presentation"
+  EXPLANATION: "Concept explanation"
+  EXAMPLE: "Illustrative example"
+  MISTAKE: "Error or warning"
+  SOLUTION: "Solution presentation"
+  CTA: "Call to action"
+  SETUP: "Scenario setup"
+  ADVENTURE: "Adventure sequence"
+  JOURNEY: "Journey progression"
+  TURNING_POINT: "Critical change moment"
+  LESSON: "Moral or insight"
+  ACTION: "Action sequence"
+  MISUNDERSTANDING: "Comedic confusion"
+  PUNCHLINE: "Humorous payoff"
+  QUESTION: "Posing a question"
+  DEMONSTRATION: "Showing how something works"
+  SUMMARY: "Summarizing key points"
+  CONTEXT: "Background context"
+  EVENT: "Main event occurrence"
+  DEVELOPMENT: "Event development"
+  CONSEQUENCE: "Results and aftermath"
+  CLUES: "Clue discovery"
