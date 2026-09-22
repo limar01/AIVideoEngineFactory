@@ -292,10 +292,28 @@ class VideoAssembler:
                 )
 
         # --- audio chain (only when a source actually has audio) ---
+        narr_idxs: list[int] = []
+        if narration_present:
+            idx = num_clip_inputs
+            if input.narration_audio and input.narration_audio.exists():
+                narr_idxs.append(idx)
+                idx += 1
+            # absent tracks do NOT consume an input index in _build_command
+            for t in input.narration_tracks:
+                if t.exists():
+                    narr_idxs.append(idx)
+                    idx += 1
+
+        if not clips_have_audio and not narr_idxs:
+            return video_chain.rstrip(";")
+
+        chains: list[str] = []
+        sources: list[str] = []
+
         if clips_have_audio:
             if num_clip_inputs == 1:
-                audio_chain = (
-                    "[0:a]aformat=sample_fmts=fltp:channel_layouts=stereo[aout]"
+                chains.append(
+                    "[0:a]aformat=sample_fmts=fltp:channel_layouts=stereo[ca];"
                 )
             else:
                 a_inputs = [
@@ -303,37 +321,52 @@ class VideoAssembler:
                     for i in range(num_clip_inputs)
                 ]
                 if self.config.crossfade_duration > 0:
-                    audio_chain = self._build_acrossfade_chain(
-                        a_inputs, num_clip_inputs
-                    )
+                    xf = self._build_acrossfade_chain(a_inputs, num_clip_inputs)
+                    # relabel the chain's terminal pad to [ca] for mixing
+                    for lbl in ("[a01];", "[aout];"):
+                        if xf.rstrip().endswith(lbl):
+                            xf = xf.rstrip()[: -len(lbl)] + "[ca];"
+                            break
+                    chains.append(xf)
                 else:
                     concat_a = "".join(f"[a{i}]" for i in range(num_clip_inputs))
-                    audio_chain = (
-                        f"{concat_a}concat=n={num_clip_inputs}:a=1[aout];"
+                    chains.append(
+                        f"{concat_a}concat=n={num_clip_inputs}:v=0:a=1[ca];"
                     )
-            return video_chain + audio_chain
+            sources.append("[ca]")
 
-        if narration_present:
-            # Silent clips + narration: wire the first present narration input.
-            idx = num_clip_inputs
-            narr_idx = None
-            if input.narration_audio and input.narration_audio.exists():
-                narr_idx = idx
-            else:
-                # absent tracks do NOT consume an input index in _build_command
-                for t in input.narration_tracks:
-                    if t.exists():
-                        narr_idx = idx
-                        break
-            if narr_idx is not None:
-                audio_chain = (
-                    f"[{narr_idx}:a]aformat=sample_fmts=fltp:"
-                    f"channel_layouts=stereo[aout]"
+        if narr_idxs:
+            parts = [
+                f"[{i}:a]aformat=sample_fmts=fltp:channel_layouts=stereo[na{j}];"
+                for j, i in enumerate(narr_idxs)
+            ]
+            if len(narr_idxs) == 1:
+                chains.append(
+                    f"[{narr_idxs[0]}:a]aformat=sample_fmts=fltp:"
+                    f"channel_layouts=stereo[nv];"
                 )
-                return video_chain + audio_chain
+            else:
+                labels = "".join(f"[na{j}]" for j in range(len(narr_idxs)))
+                chains.append(
+                    "".join(parts)
+                    + f"{labels}concat=n={len(narr_idxs)}:v=0:a=1[nv];"
+                )
+            sources.append("[nv]")
 
-        # Video-only graph
-        return video_chain.rstrip(";")
+        if len(sources) == 2:
+            # Spec §19: mix narration over clip audio
+            chains.append(
+                "[ca][nv]amix=inputs=2:duration=longest:dropout_transition=0,"
+                "apad[aout]"
+            )
+        else:
+            # single source: relabel terminal [ca]/[nv] to ,apad[aout] so
+            # -shortest ends at the video, not at short audio
+            last = chains[-1]
+            for lbl in ("[ca];", "[nv];"):
+                if last.endswith(lbl):
+                    chains[-1] = last[: -len(lbl)] + ",apad[aout]"
+        return video_chain + "".join(chains)
 
     def _has_audio(self, clip_path: Path) -> bool:
         """True when the media file contains at least one audio stream."""

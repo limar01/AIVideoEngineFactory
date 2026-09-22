@@ -145,32 +145,58 @@ class HermesStoryEngine(StoryEngine):
         )
 
         pacing = str(template.get("story_structure", {}).get("pacing", "moderate"))
-
-        act = Act(
-            act_number=1,
-            title="Act I",
-            summary=f"A {niche} story about {topic}.",
-            scenes=[
-                Scene(
-                    scene_number=1,
-                    act_number=1,
-                    title="Opening",
-                    description=f"Sets up the premise: a {topic} in a {pacing} atmosphere.",
-                    narration_text=f"In a {pacing} tale of {niche}, something stirs around {topic}.",
-                    target_clip_seconds=8.0,
-                    narration_seconds=5.0,
-                ),
-                Scene(
-                    scene_number=2,
-                    act_number=1,
-                    title="Tension Rises",
-                    description="The tension curve peaks as the threat reveals itself.",
-                    narration_text="The air grows cooler. Something is watching.",
-                    target_clip_seconds=8.0,
-                    narration_seconds=4.0,
-                ),
-            ],
+        mood = str(
+            template.get("visual_guidance", {}).get("mood", "tense")
         )
+        beats = template.get("scene_types") or ["exposition", "climax"]
+        structure = template.get("story_structure", {})
+        n_acts = max(1, int(structure.get("acts", 1) or 1))
+        clip_s = 8.0
+
+        # Deterministic free-tier fallback scaling (2026-09-22): scene count is
+        # derived from the target duration so vertical slices can scale
+        # (60s -> 8 clips of 8s). Template interpolation only — the real
+        # subagent path remains unimplemented by design.
+        n_scenes = max(2, -(-int(target_seconds) // int(clip_s)))
+
+        narr_templates = {
+            "exposition": f"In a {pacing} tale of {niche}, something stirs around {topic}.",
+            "rising_tension": "The air grows cooler. Something is watching.",
+            "jump_scare": "A sudden sound breaks the silence.",
+            "revelation": "The truth reveals itself in the shadows.",
+            "climax": "Everything converges. There is no escape.",
+        }
+
+        scenes: list[Scene] = []
+        for i in range(n_scenes):
+            st = str(beats[i % len(beats)])
+            label = st.replace("_", " ")
+            scenes.append(
+                Scene(
+                    scene_number=i + 1,
+                    act_number=min(n_acts, 1 + (i * n_acts) // n_scenes),
+                    title=label.title(),
+                    description=f"{label}: a {mood} moment around {topic}.",
+                    narration_text=narr_templates.get(
+                        st, f"The {label} deepens around {topic}."
+                    ),
+                    target_clip_seconds=clip_s,
+                    narration_seconds=5.0,
+                )
+            )
+
+        acts: list[Act] = []
+        for a in range(1, n_acts + 1):
+            members = [s for s in scenes if s.act_number == a]
+            if members:
+                acts.append(
+                    Act(
+                        act_number=a,
+                        title=f"Act {a}",
+                        summary=f"A {niche} story about {topic} — act {a}.",
+                        scenes=members,
+                    )
+                )
 
         return StoryDoc(
             topic=topic,
@@ -178,7 +204,7 @@ class HermesStoryEngine(StoryEngine):
             target_seconds=target_seconds,
             title=f"The {topic.replace('_', ' ').title()}",
             logline=f"A {niche} story where {topic} awakens a darkness.",
-            acts=[act],
+            acts=acts,
         )
 
     def generate_character_bible(self, story: StoryDoc) -> CharacterBible:

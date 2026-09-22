@@ -1,0 +1,14 @@
+{
+  "target_seconds": 60.0,
+  "clip_seconds": 8.0,
+  "scenes": 8,
+  "planned_video_seconds": 64.0,
+  "actual_seconds": 64.0,
+  "qa_passed": 8,
+  "qa_total": 8,
+  "gate_allowed": true,
+  "gate_reasons": [],
+  "final_video": "output/slice_60s/final_20260922_061336.mp4",
+  "file_size_bytes": 1328009,
+  "tts_provider": "mock"
+}
