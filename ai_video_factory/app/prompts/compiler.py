@@ -129,6 +129,26 @@ class CompiledPrompt:
     metadata: dict[str, Any] = field(default_factory=dict)
     created_at: str = ""  # ISO timestamp
 
+    @property
+    def text(self) -> str:
+        """Integration-harness contract alias for ``prompt_text`` (2026-09-22)."""
+        return self.prompt_text
+
+    @property
+    def act_number(self) -> int | None:
+        """Integration-harness contract alias for metadata act_number (2026-09-22)."""
+        return self.metadata.get("act_number")
+
+    @property
+    def adapter(self) -> str:
+        """Integration-harness contract alias for ``provider`` (2026-09-22)."""
+        return self.provider
+
+    @property
+    def clip_seconds(self) -> float:
+        """Integration-harness contract alias (2026-09-22)."""
+        return float(self.metadata.get("target_clip_seconds") or 0.0)
+
 
 class PromptCompiler:
     """Compile PlanarScenes into provider-ready prompts with versioning.
@@ -145,7 +165,32 @@ class PromptCompiler:
         self.adapter = adapter or SnapGenPromptAdapter()
         logger.info("PromptCompiler initialized (provider=%s)", provider)
 
-    def compile(self, scene: PlanarScene) -> CompiledPrompt:
+    def compile(
+        self,
+        scene: PlanarScene | list[PlanarScene],
+        *,
+        story: StoryDoc | None = None,
+        character_bible: CharacterBible | None = None,
+        visual_bible: VisualBible | None = None,
+        adapters: list[PromptAdapter] | None = None,
+        **kwargs: Any,
+    ) -> CompiledPrompt | list[CompiledPrompt]:
+        """Compile one scene, or a list (integration-harness contract, 2026-09-22).
+
+        List form delegates to ``compile_multi``; single-scene form is unchanged.
+        """
+        if isinstance(scene, list):
+            return self.compile_multi(
+                scene,
+                story=story,
+                character_bible=character_bible,
+                visual_bible=visual_bible,
+                adapters=adapters,
+                **kwargs,
+            )
+        return self._compile_one(scene)
+
+    def _compile_one(self, scene: PlanarScene) -> CompiledPrompt:
         """Compile a single scene into a provider-ready prompt."""
         try:
             continuity = json.loads(scene.continuity_dna) if scene.continuity_dna else {}
@@ -155,7 +200,7 @@ class PromptCompiler:
         prompt_text = self.adapter.format_prompt(scene, continuity)
         prompt_text = self.adapter.inject_continuity(prompt_text, continuity)
 
-        return CompiledPrompt(
+        cp = CompiledPrompt(
             scene_id=scene.scene_id,
             scene_number=scene.scene_number,
             provider=self.provider,
@@ -170,6 +215,9 @@ class PromptCompiler:
             },
             created_at="",
         )
+        # Spec §6: the scene record carries its compiled prompt.
+        scene.prompts = [{"text": prompt_text, "provider": self.provider, "version": 1}]
+        return cp
 
     def compile_multi(
         self,
@@ -206,6 +254,9 @@ class PromptCompiler:
 
             prompt_text = adapter.format_prompt(scene, continuity)
             prompt_text = adapter.inject_continuity(prompt_text, continuity)
+
+            # Spec §6: the scene record carries its compiled prompt.
+            scene.prompts = [{"text": prompt_text, "provider": self.provider, "version": 1}]
 
             results.append(CompiledPrompt(
                 scene_id=scene.scene_id,

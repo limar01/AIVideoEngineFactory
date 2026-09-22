@@ -199,8 +199,22 @@ class VideoAssembler:
             if track_path.exists():
                 args.extend(["-i", str(track_path)])
 
+        # --- Audio availability (2026-09-22 fix: silent-clip graphs) ---
+        narration_present = bool(
+            (input.narration_audio and input.narration_audio.exists())
+            or any(t.exists() for t in input.narration_tracks)
+        )
+        clips_have_audio = bool(input.clips) and all(
+            self._has_audio(p) for p in input.clips
+        )
+
         # --- Filter complex ---
-        filter_complex = self._build_filter_graph(input, len(input.clips))
+        filter_complex = self._build_filter_graph(
+            input,
+            len(input.clips),
+            clips_have_audio=clips_have_audio,
+            narration_present=narration_present,
+        )
 
         if filter_complex:
             args.extend(["-filter_complex", filter_complex])
@@ -209,8 +223,8 @@ class VideoAssembler:
         # Main video output
         args.extend(["-map", "[vout]"])
 
-        # Audio output (if we have narration)
-        if input.narration_audio or input.narration_tracks:
+        # Audio output (only when the graph actually produces one)
+        if clips_have_audio or narration_present:
             args.extend(["-map", "[aout]"])
 
         # --- Encoding options ---
@@ -243,7 +257,12 @@ class VideoAssembler:
         return args
 
     def _build_filter_graph(
-        self, input: AssemblyInput, num_clip_inputs: int
+        self,
+        input: AssemblyInput,
+        num_clip_inputs: int,
+        *,
+        clips_have_audio: bool = True,
+        narration_present: bool = False,
     ) -> str:
         """Build the FFmpeg filter_complex graph string.
 
@@ -251,39 +270,89 @@ class VideoAssembler:
         - Concatenation of video clips (with optional crossfade)
         - Mixing narration audio
         - Scaling to target resolution
+        - Silent (video-only) clips: no audio chain, no [aout]
+          (2026-09-22 fix — previously the graph always referenced [i:a]
+          and emitted an unconnected [aout], exit 234 on silent clips)
         """
+        w, h = self.config.target_resolution
+
+        # --- video chain ---
         if num_clip_inputs == 1:
-            # Single clip — just scale
-            return (
-                f"[{num_clip_inputs - 1}:v]scale={self.config.target_resolution[0]}:"
-                f"{self.config.target_resolution[1]}[vout];"
-                f"[{num_clip_inputs - 1}:a]aformat=sample_fmts=fltp:channel_layouts=stereo[aout]"
-            )
-
-        # Multiple clips — concat with crossfade
-        v_inputs = []
-        a_inputs = []
-
-        for i in range(num_clip_inputs):
-            v_inputs.append(f"[{i}:v]scale={self.config.target_resolution[0]}:"
-                            f"{self.config.target_resolution[1]}[v{i}];")
-            a_inputs.append(f"[{i}:a]aformat=sample_fmts=fltp:channel_layouts=stereo[a{i}];")
-
-        # Build crossfade chain
-        if self.config.crossfade_duration > 0:
-            # Use acrossfade for audio + xfade for video
-            video_chain = self._build_xfade_chain(v_inputs, num_clip_inputs)
-            audio_chain = self._build_acrossfade_chain(a_inputs, num_clip_inputs)
+            video_chain = f"[0:v]scale={w}:{h}[vout];"
         else:
-            # Simple concat
-            concat_v = "".join(f"[v{i}]" for i in range(num_clip_inputs))
-            concat_a = "".join(f"[a{i}]" for i in range(num_clip_inputs))
-            video_chain = f"{concat_v}concat=n={num_clip_inputs}:v=1[outv];"
-            audio_chain = f"{concat_a}concat=n={num_clip_inputs}:a=1[outa];"
-            video_chain = video_chain.replace("[outv]", "[vout]")
-            audio_chain = audio_chain.replace("[outa]", "[aout]")
+            v_inputs = [
+                f"[{i}:v]scale={w}:{h}[v{i}];" for i in range(num_clip_inputs)
+            ]
+            if self.config.crossfade_duration > 0:
+                video_chain = self._build_xfade_chain(v_inputs, num_clip_inputs)
+            else:
+                concat_v = "".join(f"[v{i}]" for i in range(num_clip_inputs))
+                video_chain = (
+                    f"{concat_v}concat=n={num_clip_inputs}:v=1[vout];"
+                )
 
-        return video_chain + audio_chain
+        # --- audio chain (only when a source actually has audio) ---
+        if clips_have_audio:
+            if num_clip_inputs == 1:
+                audio_chain = (
+                    "[0:a]aformat=sample_fmts=fltp:channel_layouts=stereo[aout]"
+                )
+            else:
+                a_inputs = [
+                    f"[{i}:a]aformat=sample_fmts=fltp:channel_layouts=stereo[a{i}];"
+                    for i in range(num_clip_inputs)
+                ]
+                if self.config.crossfade_duration > 0:
+                    audio_chain = self._build_acrossfade_chain(
+                        a_inputs, num_clip_inputs
+                    )
+                else:
+                    concat_a = "".join(f"[a{i}]" for i in range(num_clip_inputs))
+                    audio_chain = (
+                        f"{concat_a}concat=n={num_clip_inputs}:a=1[aout];"
+                    )
+            return video_chain + audio_chain
+
+        if narration_present:
+            # Silent clips + narration: wire the first present narration input.
+            idx = num_clip_inputs
+            narr_idx = None
+            if input.narration_audio and input.narration_audio.exists():
+                narr_idx = idx
+            else:
+                # absent tracks do NOT consume an input index in _build_command
+                for t in input.narration_tracks:
+                    if t.exists():
+                        narr_idx = idx
+                        break
+            if narr_idx is not None:
+                audio_chain = (
+                    f"[{narr_idx}:a]aformat=sample_fmts=fltp:"
+                    f"channel_layouts=stereo[aout]"
+                )
+                return video_chain + audio_chain
+
+        # Video-only graph
+        return video_chain.rstrip(";")
+
+    def _has_audio(self, clip_path: Path) -> bool:
+        """True when the media file contains at least one audio stream."""
+        try:
+            proc = subprocess.run(
+                [
+                    "ffprobe", "-v", "error",
+                    "-select_streams", "a",
+                    "-show_entries", "stream=index",
+                    "-of", "csv=p=0",
+                    str(clip_path),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            return bool(proc.stdout.strip())
+        except Exception:
+            return False
 
     def _build_xfade_chain(
         self, v_inputs: list[str], num_clips: int

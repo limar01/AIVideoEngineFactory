@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from app.scenes.planner import PlanarScene
@@ -108,6 +108,18 @@ class SceneOptimizer:
             "critical_findings": [{"code": f.code, "message": f.message, "suggestion": f.suggestion} for f in critical],
             "warning_findings": [{"code": f.code, "message": f.message, "suggestion": f.suggestion} for f in warnings],
         }
+
+
+    def optimize(self, scene: PlanarScene) -> PlanarScene:
+        """Integration-harness contract: analyze + rewrite in one call.
+
+        Additive method (2026-09-22 provider-contract fix). Returns a NEW
+        PlanarScene with the refined description; scene_number, clip_seconds
+        and every other field preserved; the input scene is not mutated.
+        """
+        findings = self.analyze(scene)
+        new_description = optimize_scene_description(scene.description or "", findings)
+        return replace(scene, description=new_description or scene.description)
 
 
 def optimize_scene_description(description: str, findings: list[SceneFinding]) -> str:

@@ -42,6 +42,25 @@ class PlanarScene:
     narration: dict[str, Any]       # narration metadata: text, seconds, hook, style
     prompts: list[dict[str, Any]] = field(default_factory=list)
 
+    @property
+    def prompt(self) -> str:
+        """Compiled provider prompt (spec §6 scene field), attached by the
+        PromptCompiler after compilation; empty before that."""
+        if self.prompts:
+            first = self.prompts[0]
+            return first.get("text", "") or first.get("prompt_text", "")
+        return ""
+
+    @property
+    def clip_seconds(self) -> float:
+        """Integration-harness contract alias for ``target_clip_seconds``.
+
+        Additive alias (2026-09-22 provider-contract fix): e2e tests and the
+        Master Spec tooling read ``clip_seconds``; the canonical field name
+        ``target_clip_seconds`` is unchanged.
+        """
+        return self.target_clip_seconds
+
 
 # --------------------------------------------------------------------------- #
 # ScenePlanner

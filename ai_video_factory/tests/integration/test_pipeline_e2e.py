@@ -30,7 +30,7 @@ from app.downloader import ClipDownloader, ClipDownloadError
 from app.prompts.compiler import PromptCompiler, SnapGenPromptAdapter, CompiledPrompt
 from app.providers.base import GenerationStatus
 from app.providers.mock import MockVideoProvider
-from app.qa import VideoQA, QAResult, AssemblyGate
+from app.qa import VideoQA, QAResult, QAFinding, AssemblyGate
 
 from app.scenes.optimizer import SceneOptimizer
 from app.scenes.planner import ScenePlanner, PlanarScene
@@ -128,13 +128,19 @@ def run_pipeline(
         adapters=[SnapGenPromptAdapter()],
     )
 
+    # Spec §6: scene records carry their compiled prompt after compilation.
+    for orig, opt in zip(scenes, optimized_scenes):
+        orig.prompts = list(opt.prompts)
+
     # 4. Generate clips via mock provider
     result_ids = []
     for i, prompt_info in enumerate(compiled):
         scene_meta = {
             "scene_number": prompt_info.scene_number,
             "act_number": prompt_info.act_number,
-            "target_clip_seconds": target_info.clip_seconds(prompt_info),
+            "target_clip_seconds": prompt_info.metadata.get(
+                "target_clip_seconds", target_clip_seconds
+            ),
             "aspect_ratio": "16:9",
         }
         gen_result = mock_provider.submit_generation(prompt_info.text, scene_meta)
