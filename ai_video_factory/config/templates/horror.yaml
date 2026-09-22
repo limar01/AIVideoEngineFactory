@@ -1,0 +1,50 @@
+# AI Video Factory — Horror Niche Template
+# Source: CONFIG_SPEC.md §9, ADR-0002 §Notes
+#
+# The HermesStoryEngine loads this template as structured context for subagent
+# generation. It also serves as the free-tier fallback when no LLM key is present.
+
+niche: "horror"
+story_structure:
+  acts: 3
+  pacing: "slow_burn"
+  tension_curve: [0.2, 0.5, 0.9, 0.7, 1.0]
+  beat_map:
+    act_1: "exposition_and_setup"      # 20% — establish normal world + first unease
+    act_2: "rising_tension_and_revelation"  # 60% — escalate dread, reveal threat
+    act_3: "climax_and_resolution"    # 20% — confrontation, final scare, aftermath
+
+scene_types:
+  - exposition
+  - rising_tension
+  - jump_scare
+  - revelation
+  - climax
+
+visual_guidance:
+  color_palette: ["deep_red", "dark_blue", "black"]
+  lighting: "low_contrast_with_sporadic_highlights"
+  camera_style: "tight_closeups_then_wide_reveal"
+  mood: "oppressive_and_claustrophobic"
+  recommended_aspect_ratio: "16:9"
+
+prompt_rules:
+  - "include jump scare timing in narration"
+  - "describe lighting contrast explicitly"
+  - "specify character eye contact for tension"
+  - "favor shadows over explicit gore"
+  - "use practical lighting sources (lamps, candles, phone screens)"
+
+narration_style:
+  tone: "whispered_then_loud"
+  pacing: "slow_then_punctuated"
+  perspective: "close_third_person"
+  voice_profile: "en_US-ryan-low"
+
+qa_rules:
+  min_clips_passing: 0.85     # 85% of clips must pass QA
+  max_repeated_elements: 2    # continuity check
+  forbidden_elements:
+    - "bright_sunny_outdoor_scenes"
+    - "cartoon_text_overlay"
+    - "modern_smartphones"

@@ -1,0 +1,26 @@
+# Secrets
+config/secrets.yaml
+.sessions/
+*.key
+*.pem
+
+# Database
+database/factory.db
+database/factory.db-wal
+database/factory.db-shm
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

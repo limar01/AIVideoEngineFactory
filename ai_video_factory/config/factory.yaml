@@ -1,0 +1,23 @@
+# AI Video Factory — Main Application Configuration
+# Source: docs/CONFIG_SPEC.md §2
+app:
+  name: "AI Video Factory"
+  environment: "development"  # development | production | testing
+  log_level: "INFO"
+
+paths:
+  projects_dir: "projects"
+  database: "database/factory.db"
+  logs_dir: "logs"
+  clips_dir: "projects"  # clips stored per-project under projects/<id>/clips/
+
+api:
+  host: "0.0.0.0"
+  port: 8890
+  api_key: "${VAF_API_KEY}"  # env var override; resolved at runtime
+
+pipeline:
+  default_clip_seconds: 8   # spec §1: 600/8 = 75 units
+  max_concurrent_jobs: 1    # serial per provider account (spec §2 free-tier)
+  default_niche: "horror"
+  default_target_seconds: 600

@@ -1,0 +1,19 @@
+# AI Video Factory — Audio / TTS Configuration
+# Source: docs/CONFIG_SPEC.md §6
+provider: "silent"  # piper | silent | elevenlabs | openai
+
+piper:
+  model_dir: "~/.local/share/piper/models"
+  default_voice: "en_US-amy-low"
+  on_demand_download: true
+
+silent:
+  track_type: "muted_silence_for_assembly"
+
+voices_by_niche:
+  horror:
+    piper: "en_US-ryan-low"
+  comedy:
+    piper: "en_US-kathleen-low"
+  default:
+    piper: "en_US-amy-low"

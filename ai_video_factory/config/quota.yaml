@@ -1,0 +1,13 @@
+# AI Video Factory — Quota Policy Configuration
+# Source: docs/CONFIG_SPEC.md §4
+policy:
+  # Fallback if provider doesn't expose quota — conservative
+  fallback_daily_limit: 5
+  fallback_reset_time: "next_midnight_utc"
+
+  refresh_interval_seconds: 30
+  # When quota is exhausted, how long to wait before checking again
+  quota_wait_check_interval_seconds: 300
+
+  # If multiple accounts are authorized (provider must allow this per spec §2)
+  account_rotation: false  # default: no rotation to exceed limits

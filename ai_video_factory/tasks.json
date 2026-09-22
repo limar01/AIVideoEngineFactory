@@ -1,0 +1,228 @@
+{
+  "project": "AI Video Factory",
+  "spec_version": "1.0",
+  "created": "2026-09-22T10:03:00Z",
+  "status": "phase_2_complete",
+  "phases": {
+    "1_planning": "Planning & Architecture (COMPLETE)",
+    "2_foundation": "Foundation (parallel) (COMPLETE)",
+    "3_core_engine": "Core Engine (pending)",
+    "4_provider": "Provider Integration (pending)",
+    "5_integration": "Integration (pending)",
+    "6_qa": "Quality Assurance (pending)",
+    "7_release": "Release (pending)"
+  },
+  "tasks": [
+    {
+      "id": "ARCH-001",
+      "title": "System Architecture Design",
+      "owner": "Architecture Agent",
+      "phase": 1,
+      "dependencies": [],
+      "status": "completed",
+      "priority": "critical",
+      "input": "Master Spec v1.0 (attached file)",
+      "output_files": ["docs/ARCHITECTURE.md", "docs/DB_SCHEMA.md", "docs/API_SPEC.md", "docs/PROVIDER_INTERFACE.md", "docs/STATE_MACHINE.md", "docs/DEPENDENCY_GRAPH.md", "docs/CONFIG_SPEC.md", "adr/TEMPLATE.md", "adr/0001-audio-generation-approach.md", "adr/0002-story-engine-approach.md", "adr/0003-ui-scope-decision.md"],
+      "acceptance_criteria": [
+        "Module boundaries defined with clear responsibilities",
+        "DB schema covering all 9 tables",
+        "REST API contract for all CRUD operations",
+        "Provider abstraction interface specified",
+        "State machine design with persistence guarantees documented",
+        "ADR template established in adr/",
+        "Dependency graph and task breakdown documented",
+        "Config spec documented",
+        "Pending decisions recorded as ADRs"
+      ],
+      "do_not": ["implement frontend", "implement SnapGen", "hard-code quota limits"]
+    },
+    {
+      "id": "PROVIDER-000",
+      "title": "SnapGen Browser Recon Spike",
+      "owner": "Browser Automation Agent",
+      "phase": 1,
+      "dependencies": [],
+      "status": "completed",
+      "priority": "high",
+      "input": "SnapGen website — confirmed https://snapgen.ai",
+      "output_files": ["docs/SNAPGEN_RECON.md"],
+      "acceptance_criteria": [
+        "SnapGen URL confirmed: https://snapgen.ai",
+        "Login flow: Google OAuth → app at /app/video-gen",
+        "Generation UI: textarea prompt + Generate button mapped",
+        "Free model: Veo 3.1 Fast (0 credits), 8s clips, 720p vertical",
+        "Quota detection strategy documented (CAPTCHA as rate-limit signal)",
+        "Error states and detection strategies documented"
+      ],
+      "do_not": ["bypass provider restrictions", "consume real quota beyond recon"]
+    },
+    {
+      "id": "DECISION-AUDIO",
+      "title": "User Decision: Narration/Audio Generation Approach",
+      "owner": "Personal Agent (escalated)",
+      "phase": 1,
+      "dependencies": [],
+      "status": "resolved",
+      "priority": "critical",
+      "input": "User approved local TTS (Piper) with adapter pattern",
+      "output_files": ["adr/0001-audio-generation-approach.md"],
+      "acceptance_criteria": [
+        "Decision recorded: local TTS (Piper) with SilentTrackProvider fallback",
+        "Decision recorded: voice selection via config/audio.yaml",
+        "Decision recorded: narration timing drives scene count (not duration/8)"
+      ],
+      "do_not": ["block pipeline design without this decision"]
+    },
+    {
+      "id": "DECISION-STORY",
+      "title": "User Decision: Story Engine Approach",
+      "owner": "Personal Agent (escalated)",
+      "phase": 1,
+      "dependencies": [],
+      "status": "resolved",
+      "priority": "high",
+      "input": "User approved Hermes-generated content (free)",
+      "output_files": ["adr/0002-story-engine-approach.md"],
+      "acceptance_criteria": [
+        "Decision recorded: Hermes-generated content (free, no API keys)",
+        "Decision recorded: story artifacts persisted as JSON in projects/",
+        "Story engine uses adapter pattern for future LLM provider swap"
+      ],
+      "do_not": []
+    },
+    {
+      "id": "DECISION-UI",
+      "title": "User Decision: UI Scope (Full Dashboard vs MVP)",
+      "owner": "Personal Agent (escalated)",
+      "phase": 1,
+      "dependencies": [],
+      "status": "resolved",
+      "priority": "medium",
+      "input": "User approved MVP CLI (Typer) — full React deferred",
+      "output_files": ["adr/0003-ui-scope-decision.md"],
+      "acceptance_criteria": [
+        "Decision recorded: MVP CLI (Typer + Rich) drives REST API",
+        "Full React+TS dashboard deferred to Phase 5",
+        "MVP commands: init, serve, project/*, queue/*, account/*, provider/*"
+      ],
+      "do_not": []
+    },
+    {
+      "id": "FOUND-001",
+      "title": "Backend Foundation — Persistence layer",
+      "owner": "Backend Agent",
+      "phase": 2,
+      "dependencies": ["ARCH-001"],
+      "status": "completed",
+      "priority": "critical",
+      "input": "docs/DB_SCHEMA.md, docs/STATE_MACHINE.md, docs/CONFIG_SPEC.md",
+      "output_files": ["app/core/config.py", "app/core/models.py", "app/core/database.py", "app/core/service.py", "app/core/security.py", "app/core/log_redactor.py", "database/migrations/001_initial_schema.sql", "tests/unit/test_models.py", "tests/unit/test_security.py"],
+      "acceptance_criteria": [
+        "Pydantic settings load from config/*.yaml with env override",
+        "SQLModel models for all 9 tables (Project, Scene, Prompt, GenerationJob, Account, Quota, RetryAttempt, QAResult, Download)",
+        "Database engine with WAL mode + migration runner",
+        "ProjectService with create/list/get/update/delete/pause/resume status transitions",
+        "Security: PBKDF2 password hashing, Fernet encryption, session tokens, log redaction",
+        "All 48+ unit tests passing",
+        "102 total tests passing"
+      ],
+      "do_not": ["hard-code provider quota limits", "bypass encryption"]
+    },
+    {
+      "id": "AI-001",
+      "title": "Story Engine Foundation",
+      "owner": "AI Content Agent",
+      "phase": 2,
+      "dependencies": ["ARCH-001"],
+      "status": "completed",
+      "priority": "high",
+      "input": "docs/DEPENDENCY_GRAPH.md, docs/STATE_MACHINE.md, config/templates/horror.yaml",
+      "output_files": ["app/story/models.py", "app/story/engine.py", "app/story/__init__.py", "config/story.yaml", "config/templates/horror.yaml", "tests/unit/test_story_models.py"],
+      "acceptance_criteria": [
+        "Scene/Act/StoryDoc/Character/CharacterBible/VisualBible Pydantic models",
+        "Scene count derived from narration_seconds (not duration/8)",
+        "StoryEngine ABC + HermesStoryEngine stub adapter",
+        "Factory pattern with config-driven engine selection",
+        "Horror template with tropes/villains/settings/pacing",
+        "JSON round-trip compatible with artifact storage"
+      ],
+      "do_not": ["call external LLM API", "bypass free-tier constraint"]
+    },
+    {
+      "id": "VIDEO-001",
+      "title": "FFmpeg Foundation",
+      "owner": "Video Processing Agent",
+      "phase": 2,
+      "dependencies": ["ARCH-001"],
+      "status": "completed",
+      "priority": "high",
+      "input": "docs/DB_SCHEMA.md §3.7 (QAResult), docs/STATE_MACHINE.md §3",
+      "output_files": ["app/providers/base.py", "app/providers/mock.py", "app/providers/registry.py", "app/providers/__init__.py", "tests/unit/test_mock_provider.py"],
+      "acceptance_criteria": [
+        "VideoGenerationProvider ABC with 10 methods defined",
+        "MockVideoProvider generates real MP4 clips via ffmpeg testsrc",
+        "Quota tracking with configurable limits",
+        "Failure injection for repair-engine testing",
+        "Provider registry/factory pattern",
+        "All mock provider tests passing (16 tests)"
+      ],
+      "do_not": ["use real SnapGen quota", "hard-code clip duration"]
+    },
+    {
+      "id": "SECURITY-001",
+      "title": "Security Foundation",
+      "owner": "Security Agent",
+      "phase": 2,
+      "dependencies": ["ARCH-001"],
+      "status": "completed",
+      "priority": "high",
+      "input": "Master Spec §2 (free-tier), docs/DB_SCHEMA.md §3.4-3.5",
+      "output_files": ["app/accounts/__init__.py", "app/core/security.py", "app/core/log_redactor.py", "app/accounts/manager.py", "config/secrets.yaml.template", "docs/SECURITY_MODEL.md"],
+      "acceptance_criteria": [
+        "Fernet encryption for credentials at rest",
+        "PBKDF2 password hashing with salt",
+        "Session token generation (URL-safe)",
+        "Log redaction for sensitive keys/API keys",
+        "AccountManager for authorized account pool",
+        "Secrets template file with gitignore",
+        "All security tests passing (14 tests)"
+      ],
+      "do_not": ["store plaintext credentials", "hard-code encryption key"]
+    },
+    {
+      "id": "FRONTEND-001",
+      "title": "MVP CLI Dashboard",
+      "owner": "Frontend Agent",
+      "phase": 2,
+      "dependencies": ["ARCH-001", "FOUND-001"],
+      "status": "completed",
+      "priority": "medium",
+      "input": "docs/API_SPEC.md, adr/0003-ui-scope-decision.md",
+      "output_files": ["app/ui/cli.py", "app/ui/__init__.py", "app/__main__.py", "app/api/routes.py", "app/api/__init__.py"],
+      "acceptance_criteria": [
+        "Typer CLI with subcommands: init, serve, project/*, queue/*, account/*, provider/*",
+        "Rich tables and panels for terminal output",
+        "APIClient adapter for HTTP calls to REST API",
+        "FastAPI routes for projects, queue, provider endpoints",
+        "Entry point: `aivf` command via pyproject.toml",
+        "CLI help and init command verified working"
+      ],
+      "do_not": ["build full React dashboard in Phase 2", "add auth to CLI"]
+    }
+  ],
+  "task_contracts": {
+    "template": {
+      "TASK_ID": "",
+      "TITLE": "",
+      "OWNER": "",
+      "DEPENDENCIES": [],
+      "INPUT": "",
+      "REQUIREMENTS": [],
+      "OUTPUT": [],
+      "ACCEPTANCE_CRITERIA": [],
+      "DO_NOT": [],
+      "FILES_MODULES": [],
+      "STATUS": "PENDING"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+# AI Video Factory — Story Engine Configuration
+# Source: docs/CONFIG_SPEC.md §5
+engine: "hermes"  # hermes | openai | gemini (config-only swap)
+template_dir: "config/templates"
+
+hermes:
+  # Subagent settings
+  model_preferences:
+    horror: "poolside/laguna-s-2.1:free"
+    default: "poolside/laguna-s-2.1:free"

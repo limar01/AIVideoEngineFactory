@@ -1,0 +1,16 @@
+# AI Video Factory — Provider Configuration
+# Source: docs/CONFIG_SPEC.md §3
+provider: "mock"  # mock | snapgen
+
+mock:
+  quota_limit: 10000  # never exhausts in tests
+  fail_on_call: null   # for failure injection tests
+  min_duration: 2.0
+  max_duration: 5.0
+
+snapgen:
+  base_url: "https://snapgen.ai"  # to be confirmed by PROVIDER-000 recon
+  session_timeout_minutes: 30
+  generation_timeout_minutes: 15
+  polling_interval_seconds: 10
+  # Quota is fetched live from provider — never hard-coded
