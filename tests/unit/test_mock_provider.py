@@ -1,6 +1,8 @@
 """
 Tests for mock provider.
 """
+from pathlib import Path
+
 import pytest
 import asyncio
 from app.providers.mock.mock_provider import MockVideoProvider, create_mock_provider
@@ -113,6 +115,29 @@ async def test_mock_download(mock_provider, tmp_path):
     success = await mock_provider.download_result(result.job_id, download_path)
     
     assert success is True
+
+
+@pytest.mark.asyncio
+async def test_mock_generation_creates_non_empty_video(mock_provider):
+    """Test mock generation creates a non-empty output file."""
+    await mock_provider.authenticate()
+
+    request = GenerationRequest(
+        prompt="Non-empty output test",
+        duration=5,
+        resolution="720p",
+    )
+
+    result = await mock_provider.submit_generation(request)
+    await asyncio.sleep(0.2)
+
+    status = await mock_provider.get_generation_status(result.job_id)
+    assert status.status == "completed"
+    assert status.video_path is not None
+
+    path = Path(status.video_path)
+    assert path.exists()
+    assert path.stat().st_size > 0
 
 
 @pytest.mark.asyncio

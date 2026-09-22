@@ -16,6 +16,7 @@ from app.core.db.models import (
     Project,
 )
 from app.core.config import get_or_init_config
+from app.providers import create_provider
 from app.providers.base.provider import (
     VideoGenerationProvider,
     GenerationRequest,
@@ -35,6 +36,14 @@ class GenerationQueueManager:
         self.config = get_or_init_config()
         self._running = False
         self._current_jobs: Dict[int, asyncio.Task] = {}
+
+    def get_provider(
+        self,
+        provider_name: str,
+        config: Optional[Dict[str, Any]] = None,
+    ) -> VideoGenerationProvider:
+        """Resolve a provider by name using the config-backed factory."""
+        return create_provider(provider_name, config)
     
     async def create_job(
         self,

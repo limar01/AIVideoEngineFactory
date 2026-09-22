@@ -28,7 +28,8 @@ class MockVideoProvider(VideoGenerationProvider):
     """
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        super().__init__("mock", config or {})
+        config = config or {}
+        super().__init__("mock", config)
         
         # Configuration from config or defaults
         self.generation_time = config.get("generation_time_seconds", 5)
@@ -155,14 +156,19 @@ class MockVideoProvider(VideoGenerationProvider):
         success = random.random() < self.success_rate
         
         if success:
-            # Create a dummy video file
+            # Create a small non-empty mock video artifact so the output looks
+            # like a real generated file rather than a zero-byte placeholder.
             output_dir = Path(self.config.get("output_dir", "./output"))
             output_dir.mkdir(parents=True, exist_ok=True)
             video_path = output_dir / f"{job_id}.mp4"
-            
-            # For mock, we just create an empty file as placeholder
-            # In real testing, you might want to create actual test videos
-            video_path.touch()
+            payload = (
+                b"mock-video-file\n"
+                + f"job_id={job_id}\n".encode("utf-8")
+                + f"prompt={request.prompt}\n".encode("utf-8")
+                + f"duration={request.duration}\n".encode("utf-8")
+                + f"resolution={request.resolution}\n".encode("utf-8")
+            )
+            video_path.write_bytes(payload)
             
             self._active_jobs[job_id].status = "completed"
             self._active_jobs[job_id].video_path = str(video_path)

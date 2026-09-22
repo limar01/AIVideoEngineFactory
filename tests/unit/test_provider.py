@@ -148,3 +148,15 @@ class TestQuotaInfo:
         )
         
         assert quota.can_generate() is True
+
+    def test_zero_remaining_quota_is_exhausted(self):
+        """Test zero remaining quota is preserved and treated as exhausted."""
+        quota = QuotaInfo(
+            daily_limit=None,
+            daily_used=10,
+            daily_remaining=0,
+        )
+
+        assert quota.daily_remaining == 0
+        assert quota.is_exhausted is True
+        assert quota.can_generate() is False

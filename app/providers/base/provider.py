@@ -133,9 +133,12 @@ class QuotaInfo:
     ):
         self.daily_limit = daily_limit
         self.daily_used = daily_used
-        self.daily_remaining = daily_remaining or (
-            daily_limit - daily_used if daily_limit else None
-        )
+        if daily_remaining is not None:
+            self.daily_remaining = daily_remaining
+        else:
+            self.daily_remaining = (
+                daily_limit - daily_used if daily_limit is not None else None
+            )
         self.reset_time = reset_time
         self.is_exhausted = is_exhausted or (
             self.daily_remaining is not None and self.daily_remaining <= 0
