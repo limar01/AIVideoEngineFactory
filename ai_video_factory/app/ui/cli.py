@@ -521,3 +521,7 @@ def provider_test(
 
 # Alias the main app for the entry point
 main = app
+
+
+if __name__ == "__main__":
+    app()

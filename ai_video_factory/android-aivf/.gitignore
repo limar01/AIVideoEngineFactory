@@ -1,0 +1,6 @@
+# Machine-local only. Phone build: sdk.dir=/data/data/com.termux/files/home/android-sdk
+build/
+.gradle/
+local.properties
+*.iml
+.idea/
