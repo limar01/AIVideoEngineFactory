@@ -1,4 +1,4 @@
-# AI Video Factory
+# AIVideoEngineFactory
 
 A modular, free-tier AI video generation pipeline built on **Hermes Desktop** + **specialist agent team**.
 

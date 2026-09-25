@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ai-video-factory"
+name = "ai-video-engine-factory"
 version = "0.1.0"
-description = "Modular free-tier AI video generation pipeline"
+description = "AIVideoEngineFactory — AI video generation engine factory"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
