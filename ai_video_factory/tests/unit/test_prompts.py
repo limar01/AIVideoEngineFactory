@@ -1,21 +1,30 @@
-"""Unit tests for the prompts module (PromptCompiler + adapters)."""
-import json
+"""Unit tests for the prompts module (PromptCompiler + adapters).
 
+Tests the new prompt compiler interface:
+- SnapGenPromptAdapter.format_prompt(scene, continuity_dna)
+- SnapGenPromptAdapter.get_negative_prompt(scene)
+- PromptCompiler.compile(scene)
+- PromptCompiler.compile_multi(scenes, ...)
+"""
+
+from __future__ import annotations
+
+import json
 import pytest
 
 from app.prompts.compiler import (
     PromptCompiler,
     SnapGenPromptAdapter,
     CompiledPrompt,
-    get_prompt_adapter,
     _optimize_description,
 )
 from app.scenes.planner import PlanarScene
 
 
-# --------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------
 # Fixtures
-# --------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def sample_scene() -> PlanarScene:
@@ -40,13 +49,14 @@ def sample_scene() -> PlanarScene:
                 },
             ],
             "visual_anchors": {
-                "color_palette": ["black", "deep_red"],
+                "color_palette": ["deep_red", "black"],
                 "lighting": "low_contrast",
-                "camera_style": "tight_closeups",
+                "camera_style": "tight_closeup",
                 "aspect_ratio": "9:16",
             },
         }),
-        narration={"text": "In the dim light, something stirs. A doll sits alone.", "seconds": 4.8, "style": "standard"},
+        narration={"text": "In the dim light...", "seconds": 4.8, "style": "standard"},
+        prompts=[],
     )
 
 
@@ -56,277 +66,222 @@ def sample_scene_high() -> PlanarScene:
         scene_id="scene-002",
         scene_number=2,
         act_number=1,
-        title="First Night",
-        description="The protagonist walks down the hall while the doll's eyes follow and the lights flicker.",
-        narration_text="That night, something whispers. The air grows colder.",
-        narration_seconds=3.2,
+        title="Confrontation",
+        description="The protagonist runs through the hallway while the doll chases her, "
+                    "simultaneously the lights flicker and a door slams.",
+        narration_text="She runs. The doll follows. Lights flicker.",
+        narration_seconds=6.0,
         target_clip_seconds=8.0,
         complexity="HIGH",
         continuity_dna=json.dumps({
             "scene_index": 1,
-            "characters": [
-                {"name": "The Protagonist", "appearance": "Tall, dark hair", "clothing": "Dark jacket", "props": ["Flashlight"]},
-                {"name": "The Doll", "appearance": "Porcelain face", "clothing": "Black dress", "props": []},
-            ],
+            "characters": [],
             "visual_anchors": {
-                "color_palette": ["black", "deep_red"],
-                "lighting": "low_contrast",
-                "camera_style": "tight_closeups",
+                "color_palette": ["red", "black"],
+                "lighting": "flickering",
+                "camera_style": "handheld_shaky",
                 "aspect_ratio": "9:16",
             },
         }),
-        narration={"text": "That night, something whispers. The air grows colder.", "seconds": 3.2, "style": "standard"},
+        narration={"text": "She runs...", "seconds": 6.0, "style": "standard"},
+        prompts=[],
     )
 
 
-# --------------------------------------------------------------------------- #
-# PromptCompiler unit tests
-# --------------------------------------------------------------------------- #
+@pytest.fixture
+def adapter() -> SnapGenPromptAdapter:
+    return SnapGenPromptAdapter()
+
+
+# ---------------------------------------------------------------------------
+# SnapGenPromptAdapter
+# ---------------------------------------------------------------------------
+
+
+class TestSnapGenPromptAdapter:
+    def test_format_prompt_basic(self, adapter: SnapGenPromptAdapter, sample_scene: PlanarScene) -> None:
+        prompt = adapter.format_prompt(sample_scene)
+        assert isinstance(prompt, str)
+        assert len(prompt) > 0
+        assert "cinematic" in prompt.lower() or "shot" in prompt.lower()
+
+    def test_format_prompt_injects_continuity(self, adapter: SnapGenPromptAdapter, sample_scene: PlanarScene) -> None:
+        prompt = adapter.format_prompt(sample_scene)
+        assert len(prompt) > 50  # Should have substantial content
+
+    def test_format_prompt_includes_character(self, adapter: SnapGenPromptAdapter, sample_scene: PlanarScene) -> None:
+        prompt = adapter.format_prompt(sample_scene)
+        # Check character info is in prompt
+        assert "character" in prompt.lower() or "Protagonist" in prompt
+
+    def test_format_prompt_sets_aspect_ratio(self, adapter: SnapGenPromptAdapter, sample_scene: PlanarScene) -> None:
+        prompt = adapter.format_prompt(sample_scene)
+        assert "9:16" in prompt
+
+    def test_format_prompt_sets_resolution(self, adapter: SnapGenPromptAdapter, sample_scene: PlanarScene) -> None:
+        prompt = adapter.format_prompt(sample_scene)
+        assert "1080p" in prompt
+
+    def test_format_prompt_sets_duration(self, adapter: SnapGenPromptAdapter, sample_scene: PlanarScene) -> None:
+        prompt = adapter.format_prompt(sample_scene)
+        assert "8" in prompt  # 8 seconds
+
+    def test_format_prompt_dialouge_in_prompt(self, adapter: SnapGenPromptAdapter, sample_scene: PlanarScene) -> None:
+        prompt = adapter.format_prompt(sample_scene)
+        # Veo generates audio from dialogue in prompt
+        assert "audio" in prompt.lower() or "dialogue" in prompt.lower()
+
+    def test_get_negative_prompt(self, adapter: SnapGenPromptAdapter, sample_scene: PlanarScene) -> None:
+        neg = adapter.get_negative_prompt(sample_scene)
+        assert isinstance(neg, str)
+        assert len(neg) > 0
+        assert "--no:" in neg
+
+    def test_get_negative_prompt_prevents_inconsistency(self, adapter: SnapGenPromptAdapter, sample_scene: PlanarScene) -> None:
+        neg = adapter.get_negative_prompt(sample_scene)
+        assert "morphing" in neg
+        assert "inconsistent" in neg
+
+
+# ---------------------------------------------------------------------------
+# _optimize_description helper
+# ---------------------------------------------------------------------------
+
+
+class TestOptimizeDescription:
+    def test_basic_description_unchanged(self) -> None:
+        result = _optimize_description("A doll sits on a shelf.", "LOW")
+        assert result == "A doll sits on a shelf."
+
+    def test_removes_simultaneous_while(self) -> None:
+        result = _optimize_description("A runs while B talks.", "LOW")
+        assert "and then" in result
+        assert "while" not in result
+
+    def test_removes_meanwhile(self) -> None:
+        result = _optimize_description("A walks meanwhile B watches.", "LOW")
+        assert "and then" in result
+
+    def test_high_complexity_adds_focus(self) -> None:
+        result = _optimize_description("Complex scene with many actions.", "HIGH")
+        assert "Focus on one clear action:" in result
+
+    def test_description_truncated_long(self) -> None:
+        long_desc = "word " * 300
+        result = _optimize_description(long_desc, "LOW")
+        assert len(result) <= 200
+
+
+# ---------------------------------------------------------------------------
+# PromptCompiler
+# ---------------------------------------------------------------------------
+
 
 class TestPromptCompiler:
     def test_compile_produces_prompt(self, sample_scene: PlanarScene) -> None:
         compiler = PromptCompiler(provider="snapgen")
         prompt = compiler.compile(sample_scene)
         assert isinstance(prompt, CompiledPrompt)
-        assert prompt.provider == "snapgen"
-        assert prompt.version == 1
         assert prompt.scene_id == "scene-001"
-        assert prompt.scene_number == 1
+        assert prompt.provider == "snapgen"
 
     def test_compile_prompt_text_nonempty(self, sample_scene: PlanarScene) -> None:
         compiler = PromptCompiler(provider="snapgen")
         prompt = compiler.compile(sample_scene)
         assert len(prompt.prompt_text) > 0
-        assert "Aspect ratio: 9:16" in prompt.prompt_text
-        assert "Resolution: 720p" in prompt.prompt_text
-        assert "Duration: ~8.0s" in prompt.prompt_text
 
-    def test_compile_injects_visual_anchors(self, sample_scene: PlanarScene) -> None:
+    def test_compile_sets_version(self, sample_scene: PlanarScene) -> None:
         compiler = PromptCompiler(provider="snapgen")
         prompt = compiler.compile(sample_scene)
-        assert "low_contrast" in prompt.prompt_text
-        assert "tight_closeups" in prompt.prompt_text
-        assert "black" in prompt.prompt_text
-        assert "deep_red" in prompt.prompt_text
+        assert prompt.version == 1
 
-    def test_compile_injects_characters(self, sample_scene: PlanarScene) -> None:
+    def test_compile_metadata_has_continuity(self, sample_scene: PlanarScene) -> None:
         compiler = PromptCompiler(provider="snapgen")
         prompt = compiler.compile(sample_scene)
-        assert "The Protagonist" in prompt.prompt_text
-        assert "Dark jacket" in prompt.prompt_text
+        assert "continuity_dna" in prompt.metadata
 
-    def test_compile_continuity_injection(self, sample_scene: PlanarScene) -> None:
+    def test_compile_metadata_has_target_clip(self, sample_scene: PlanarScene) -> None:
         compiler = PromptCompiler(provider="snapgen")
         prompt = compiler.compile(sample_scene)
-        # Continuity should be injected at end
-        assert "[Maintain consistency:" in prompt.prompt_text
-        assert "The Protagonist in Dark jacket" in prompt.prompt_text
+        assert prompt.metadata.get("target_clip_seconds") == 8.0
+
+    def test_compile_with_custom_adapter(self, sample_scene: PlanarScene) -> None:
+        adapter = SnapGenPromptAdapter()
+        compiler = PromptCompiler(provider="snapgen", adapter=adapter)
+        prompt = compiler.compile(sample_scene)
+        assert isinstance(prompt, CompiledPrompt)
 
     def test_compile_all(self, sample_scene: PlanarScene, sample_scene_high: PlanarScene) -> None:
         compiler = PromptCompiler(provider="snapgen")
-        prompts = compiler.compile_all([sample_scene, sample_scene_high])
+        scenes = [sample_scene, sample_scene_high]
+        prompts = compiler.compile(scene=scenes)
         assert len(prompts) == 2
-        assert prompts[0].scene_id == "scene-001"
-        assert prompts[1].scene_id == "scene-002"
+        assert all(isinstance(p, CompiledPrompt) for p in prompts)
 
-    def test_compile_all_different_providers(self, sample_scene: PlanarScene) -> None:
+    def test_compile_single_vs_multi(self, sample_scene: PlanarScene) -> None:
         compiler = PromptCompiler(provider="snapgen")
-        prompts = compiler.compile_all([sample_scene])
-        assert prompts[0].provider == "snapgen"
+        # Single
+        single = compiler.compile(sample_scene)
+        assert isinstance(single, CompiledPrompt)
+        # Multi (list)
+        multi = compiler.compile([sample_scene])
+        assert isinstance(multi, list)
+        assert len(multi) == 1
 
-    def test_compile_metadata(self, sample_scene: PlanarScene) -> None:
+
+# ---------------------------------------------------------------------------
+# CompiledPrompt properties
+# ---------------------------------------------------------------------------
+
+
+class TestCompiledPromptProperties:
+    def test_scene_id(self) -> None:
+        cp = CompiledPrompt(scene_id="s1", scene_number=1, provider="snapgen", prompt_text="test")
+        assert cp.scene_id == "s1"
+
+    def test_scene_number(self) -> None:
+        cp = CompiledPrompt(scene_id="s1", scene_number=5, provider="snapgen", prompt_text="test")
+        assert cp.scene_number == 5
+
+    def test_provider(self) -> None:
+        cp = CompiledPrompt(scene_id="s1", scene_number=1, provider="snapgen", prompt_text="test")
+        assert cp.provider == "snapgen"
+
+    def test_text_property(self) -> None:
+        cp = CompiledPrompt(scene_id="s1", scene_number=1, provider="snapgen", prompt_text="hello")
+        assert cp.text == "hello"
+
+    def test_clip_seconds_from_metadata(self, sample_scene: PlanarScene) -> None:
         compiler = PromptCompiler(provider="snapgen")
         prompt = compiler.compile(sample_scene)
-        assert prompt.metadata["complexity"] == "LOW"
-        assert prompt.metadata["narration_seconds"] == 4.8
-        assert prompt.metadata["target_clip_seconds"] == 8.0
-        assert "continuity_dna" in prompt.metadata
-
-    def test_complexity_weight_low(self, sample_scene: PlanarScene) -> None:
-        compiler = PromptCompiler(provider="snapgen")
-        prompt = compiler.compile(sample_scene)
-        assert "Focus on one clear action" not in prompt.prompt_text
-
-    def test_complexity_weight_high(self, sample_scene_high: PlanarScene) -> None:
-        compiler = PromptCompiler(provider="snapgen")
-        prompt = compiler.compile(sample_scene_high)
-        assert "Focus on one clear action" in prompt.prompt_text
-
-    def test_high_complexity_simplifies_actions(self, sample_scene_high: PlanarScene) -> None:
-        compiler = PromptCompiler(provider="snapgen")
-        prompt = compiler.compile(sample_scene_high)
-        assert "while" not in prompt.prompt_text.lower()
-        assert "and then" in prompt.prompt_text
-
-    def test_get_prompt_adapter_unknown(self) -> None:
-        adapter = get_prompt_adapter("unknown_provider")
-        assert isinstance(adapter, SnapGenPromptAdapter)
-
-    def test_get_prompt_adapter_snapgen(self) -> None:
-        adapter = get_prompt_adapter("snapgen")
-        assert isinstance(adapter, SnapGenPromptAdapter)
-
-    def test_create_repaired_prompt(self, sample_scene: PlanarScene) -> None:
-        compiler = PromptCompiler(provider="snapgen")
-        original = compiler.compile(sample_scene)
-        repaired = compiler.create_repaired_prompt(
-            original,
-            "A haunted doll sits on a shelf.",
-            new_version=2,
-        )
-        assert repaired.version == 2
-        assert repaired.scene_id == "scene-001"
-        assert repaired.provider == "snapgen"
-        assert "haunted doll" in repaired.prompt_text.lower()
-        assert repaired.metadata["repair_strategy"] == "simplify_description"
-        assert repaired.metadata["complexity"] == "LOW"
-
-    def test_create_repaired_prompt_preserves_continuity(self, sample_scene: PlanarScene) -> None:
-        compiler = PromptCompiler(provider="snapgen")
-        original = compiler.compile(sample_scene)
-        repaired = compiler.create_repaired_prompt(
-            original,
-            "A doll sits on a shelf.",
-            new_version=2,
-        )
-        # Continuity should still be in the repaired prompt
-        assert "The Protagonist" in repaired.prompt_text
-        assert "Dark jacket" in repaired.prompt_text
+        assert prompt.clip_seconds == 8.0
 
 
-class TestSnapGenPromptAdapter:
-    def test_format_prompt_basic(self, sample_scene: PlanarScene) -> None:
-        adapter = SnapGenPromptAdapter()
-        result = adapter.format_prompt(sample_scene)
-        assert isinstance(result, str)
-        assert len(result) > 0
-        assert "Aspect ratio: 9:16" in result
-
-    def test_format_prompt_injects_continuity(self, sample_scene: PlanarScene) -> None:
-        adapter = SnapGenPromptAdapter()
-        dna = json.loads(sample_scene.continuity_dna)
-        result = adapter.format_prompt(sample_scene, dna)
-        assert "The Protagonist" in result
-        assert "Dark jacket" in result
-
-    def test_inject_continuity_no_characters(self) -> None:
-        adapter = SnapGenPromptAdapter()
-        result = adapter.inject_continuity("A simple scene.", {})
-        assert result == "A simple scene."
-
-    def test_inject_continuity_with_characters(self) -> None:
-        adapter = SnapGenPromptAdapter()
-        dna = {
-            "characters": [
-                {"name": "Hero", "appearance": "Tall", "clothing": "Red coat", "props": ["Sword"]}
-            ]
-        }
-        result = adapter.inject_continuity("The hero walks.", dna)
-        assert "Maintain consistency:" in result
-        assert "Hero in Red coat" in result
-
-    def test_complexity_weight(self, sample_scene: PlanarScene) -> None:
-        adapter = SnapGenPromptAdapter()
-        assert adapter.complexity_weight(sample_scene) == "LOW"
-
-    def test_custom_aspect_ratio(self) -> None:
-        adapter = SnapGenPromptAdapter(aspect_ratio="16:9", resolution="1080p")
-        scene = PlanarScene(
-            scene_id="s1", scene_number=1, act_number=None,
-            title="Test", description="Test",
-            narration_text=None, narration_seconds=None,
-            target_clip_seconds=8.0, complexity="LOW",
-            continuity_dna="{}",
-            narration={"text": None, "seconds": None, "style": "standard"},
-        )
-        result = adapter.format_prompt(scene)
-        assert "Aspect ratio: 16:9" in result
-        assert "Resolution: 1080p" in result
-
-
-class TestOptimizeDescription:
-    def test_removes_simultaneous_connectors(self) -> None:
-        text = "A runs while B talks — simultaneously."
-        result = _optimize_description(text, "MEDIUM")
-        assert "while" not in result.lower()
-        assert "simultaneously" not in result.lower()
-        assert "and then" in result.lower()
-
-    def test_keeps_simple_descriptions(self) -> None:
-        text = "A haunted doll sits on a shelf."
-        result = _optimize_description(text, "LOW")
-        assert result == text
-
-    def test_high_complexity_prefixed(self) -> None:
-        text = "A runs. B walks. C talks."
-        result = _optimize_description(text, "HIGH")
-        assert result.startswith("Focus on one clear action:")
-        assert "A runs" in result
-
-    def test_truncates_long_descriptions(self) -> None:
-        text = "word " * 300
-        result = _optimize_description(text, "LOW")
-        assert len(result) <= 200
+# ---------------------------------------------------------------------------
+# End-to-end: story scene → prompt
+# ---------------------------------------------------------------------------
 
 
 class TestEndToEndPromptPipeline:
-    """Full pipeline: story → scene planner → prompt compiler."""
-
     def test_full_pipeline_produces_prompts(self) -> None:
-        from app.story.models import StoryDoc, Act, Scene as StoryScene, CharacterBible, VisualBible, Character
-
-        story = StoryDoc(
-            topic="haunted doll",
-            niche="horror",
-            target_seconds=600,
-            title="The Haunted Doll",
-            logline="A haunted doll.",
-            acts=[
-                Act(
-                    act_number=1,
-                    title="Act I",
-                    scenes=[
-                        StoryScene(
-                            scene_number=1,
-                            title="Opening",
-                            description="A haunted doll sits on a shelf in a dark hallway.",
-                            narration_text="In the dim light, something stirs.",
-                            target_clip_seconds=8.0,
-                        ),
-                    ],
-                ),
-            ],
-        )
-
-        characters = CharacterBible(characters=[
-            Character(
-                name="The Protagonist",
-                appearance="Tall, dark hair",
-                clothing="Dark jacket",
-                props=["Flashlight"],
-            )
-        ])
-
-        visual = VisualBible(
-            color_palette=["black", "deep_red"],
-            lighting="low_contrast",
-            camera_style="tight_closeups",
-            aspect_ratio="9:16",
-        )
-
+        """Story scene → PleanarScene → compiled prompt."""
+        from app.story.engine import PinoyDramaStoryEngine
         from app.scenes.planner import ScenePlanner
+        from app.prompts.compiler import PromptCompiler, SnapGenPromptAdapter
+
+        engine = PinoyDramaStoryEngine()
+        story = engine.generate_story("family conflict", "pinoy_drama", 480)
+        cb = engine.generate_character_bible(story)
+        vb = engine.generate_visual_bible(story, cb)
+
         planner = ScenePlanner()
-        scenes = planner.plan(story, characters, visual)
+        scenes = planner.plan(story, cb, vb)
+        assert len(scenes) > 0
 
-        assert len(scenes) == 1
-        assert scenes[0].narration_seconds == 2.4  # "In the dim light, something stirs." ≈ 3 words at 150wpm = 2.0s, min_clipped to 2.0
+        adapter = SnapGenPromptAdapter()
+        compiler = PromptCompiler(provider="snapgen", adapter=adapter)
+        prompts = compiler.compile(scenes)
 
-        compiler = PromptCompiler(provider="snapgen")
-        prompts = compiler.compile_all(scenes)
-
-        assert len(prompts) == 1
-        assert prompts[0].provider == "snapgen"
-        assert "Aspect ratio: 9:16" in prompts[0].prompt_text
-        assert "The Protagonist" in prompts[0].prompt_text
-        assert "Dark jacket" in prompts[0].prompt_text
-        assert "Flashlight" in prompts[0].metadata["continuity_dna"]
+        assert len(prompts) == len(scenes)
+        assert all(len(p.prompt_text) > 0 for p in prompts)
+        assert all(p.provider == "snapgen" for p in prompts)

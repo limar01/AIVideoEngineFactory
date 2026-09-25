@@ -37,8 +37,9 @@ class TestConfig:
         assert settings.story_engine == "hermes"
 
     def test_get_config_nested_key(self) -> None:
+        # 10 = SnapGen free tier daily limit (user-confirmed 2026-09-24)
         val = get_config("quota", "policy.fallback_daily_limit", 99)
-        assert val == 5
+        assert val == 10
 
     def test_get_config_missing_returns_default(self) -> None:
         val = get_config("quota", "nonexistent.key", 42)

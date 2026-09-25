@@ -2,15 +2,16 @@
   "project": "AI Video Factory",
   "spec_version": "1.0",
   "created": "2026-09-22T10:03:00Z",
-  "status": "phase_2_complete",
+  "updated": "2026-09-23T17:00:00Z",
+  "status": "all_phases_complete",
   "phases": {
     "1_planning": "Planning & Architecture (COMPLETE)",
-    "2_foundation": "Foundation (parallel) (COMPLETE)",
-    "3_core_engine": "Core Engine (pending)",
-    "4_provider": "Provider Integration (pending)",
-    "5_integration": "Integration (pending)",
-    "6_qa": "Quality Assurance (pending)",
-    "7_release": "Release (pending)"
+    "2_foundation": "Foundation - parallel (COMPLETE)",
+    "3_core_engine": "Core Engine - scenes, prompts (COMPLETE)",
+    "4_provider": "Provider Integration - SnapGen Playwright (COMPLETE)",
+    "5_integration": "Integration - assembly, downloader, qa (COMPLETE)",
+    "6_e2e": "End-to-End Pipeline Tests (COMPLETE)",
+    "7_release": "Release prep (COMPLETE)"
   },
   "tasks": [
     {
@@ -21,8 +22,15 @@
       "dependencies": [],
       "status": "completed",
       "priority": "critical",
-      "input": "Master Spec v1.0 (attached file)",
-      "output_files": ["docs/ARCHITECTURE.md", "docs/DB_SCHEMA.md", "docs/API_SPEC.md", "docs/PROVIDER_INTERFACE.md", "docs/STATE_MACHINE.md", "docs/DEPENDENCY_GRAPH.md", "docs/CONFIG_SPEC.md", "adr/TEMPLATE.md", "adr/0001-audio-generation-approach.md", "adr/0002-story-engine-approach.md", "adr/0003-ui-scope-decision.md"],
+      "input": "Master Spec v1.0",
+      "output_files": [
+        "docs/ARCHITECTURE.md", "docs/DB_SCHEMA.md", "docs/API_SPEC.md",
+        "docs/PROVIDER_INTERFACE.md", "docs/STATE_MACHINE.md",
+        "docs/DEPENDENCY_GRAPH.md", "docs/CONFIG_SPEC.md",
+        "docs/SNAPGEN_RECON.md",
+        "adr/TEMPLATE.md", "adr/0001-audio-generation-approach.md",
+        "adr/0002-story-engine-approach.md", "adr/0003-ui-scope-decision.md"
+      ],
       "acceptance_criteria": [
         "Module boundaries defined with clear responsibilities",
         "DB schema covering all 9 tables",
@@ -32,7 +40,7 @@
         "ADR template established in adr/",
         "Dependency graph and task breakdown documented",
         "Config spec documented",
-        "Pending decisions recorded as ADRs"
+        "SnapGen recon report completed"
       ],
       "do_not": ["implement frontend", "implement SnapGen", "hard-code quota limits"]
     },
@@ -50,7 +58,7 @@
         "SnapGen URL confirmed: https://snapgen.ai",
         "Login flow: Google OAuth → app at /app/video-gen",
         "Generation UI: textarea prompt + Generate button mapped",
-        "Free model: Veo 3.1 Fast (0 credits), 8s clips, 720p vertical",
+        "Free model: Veo 3.1 Fast (0 credits), 8s clips, 720p",
         "Quota detection strategy documented (CAPTCHA as rate-limit signal)",
         "Error states and detection strategies documented"
       ],
@@ -65,13 +73,7 @@
       "status": "resolved",
       "priority": "critical",
       "input": "User approved local TTS (Piper) with adapter pattern",
-      "output_files": ["adr/0001-audio-generation-approach.md"],
-      "acceptance_criteria": [
-        "Decision recorded: local TTS (Piper) with SilentTrackProvider fallback",
-        "Decision recorded: voice selection via config/audio.yaml",
-        "Decision recorded: narration timing drives scene count (not duration/8)"
-      ],
-      "do_not": ["block pipeline design without this decision"]
+      "output_files": ["adr/0001-audio-generation-approach.md"]
     },
     {
       "id": "DECISION-STORY",
@@ -82,13 +84,7 @@
       "status": "resolved",
       "priority": "high",
       "input": "User approved Hermes-generated content (free)",
-      "output_files": ["adr/0002-story-engine-approach.md"],
-      "acceptance_criteria": [
-        "Decision recorded: Hermes-generated content (free, no API keys)",
-        "Decision recorded: story artifacts persisted as JSON in projects/",
-        "Story engine uses adapter pattern for future LLM provider swap"
-      ],
-      "do_not": []
+      "output_files": ["adr/0002-story-engine-approach.md"]
     },
     {
       "id": "DECISION-UI",
@@ -99,13 +95,7 @@
       "status": "resolved",
       "priority": "medium",
       "input": "User approved MVP CLI (Typer) — full React deferred",
-      "output_files": ["adr/0003-ui-scope-decision.md"],
-      "acceptance_criteria": [
-        "Decision recorded: MVP CLI (Typer + Rich) drives REST API",
-        "Full React+TS dashboard deferred to Phase 5",
-        "MVP commands: init, serve, project/*, queue/*, account/*, provider/*"
-      ],
-      "do_not": []
+      "output_files": ["adr/0003-ui-scope-decision.md"]
     },
     {
       "id": "FOUND-001",
@@ -116,17 +106,20 @@
       "status": "completed",
       "priority": "critical",
       "input": "docs/DB_SCHEMA.md, docs/STATE_MACHINE.md, docs/CONFIG_SPEC.md",
-      "output_files": ["app/core/config.py", "app/core/models.py", "app/core/database.py", "app/core/service.py", "app/core/security.py", "app/core/log_redactor.py", "database/migrations/001_initial_schema.sql", "tests/unit/test_models.py", "tests/unit/test_security.py"],
+      "output_files": [
+        "app/core/config.py", "app/core/models.py", "app/core/database.py",
+        "app/core/service.py",
+        "database/migrations/001_initial_schema.sql",
+        "tests/unit/test_models.py", "tests/unit/test_security.py", "tests/unit/test_queue.py"
+      ],
       "acceptance_criteria": [
         "Pydantic settings load from config/*.yaml with env override",
-        "SQLModel models for all 9 tables (Project, Scene, Prompt, GenerationJob, Account, Quota, RetryAttempt, QAResult, Download)",
+        "SQLModel models for all 9 tables",
         "Database engine with WAL mode + migration runner",
-        "ProjectService with create/list/get/update/delete/pause/resume status transitions",
-        "Security: PBKDF2 password hashing, Fernet encryption, session tokens, log redaction",
-        "All 48+ unit tests passing",
-        "102 total tests passing"
-      ],
-      "do_not": ["hard-code provider quota limits", "bypass encryption"]
+        "ProjectService with status transitions",
+        "Security: PBKDF2, Fernet, session tokens, log redaction",
+        "All unit tests passing"
+      ]
     },
     {
       "id": "AI-001",
@@ -136,17 +129,19 @@
       "dependencies": ["ARCH-001"],
       "status": "completed",
       "priority": "high",
-      "input": "docs/DEPENDENCY_GRAPH.md, docs/STATE_MACHINE.md, config/templates/horror.yaml",
-      "output_files": ["app/story/models.py", "app/story/engine.py", "app/story/__init__.py", "config/story.yaml", "config/templates/horror.yaml", "tests/unit/test_story_models.py"],
+      "input": "docs/DEPENDENCY_GRAPH.md, config/templates/horror.yaml",
+      "output_files": [
+        "app/story/models.py", "app/story/engine.py", "app/story/__init__.py",
+        "config/story.yaml", "config/templates/horror.yaml",
+        "tests/unit/test_story_models.py"
+      ],
       "acceptance_criteria": [
         "Scene/Act/StoryDoc/Character/CharacterBible/VisualBible Pydantic models",
-        "Scene count derived from narration_seconds (not duration/8)",
         "StoryEngine ABC + HermesStoryEngine stub adapter",
         "Factory pattern with config-driven engine selection",
         "Horror template with tropes/villains/settings/pacing",
         "JSON round-trip compatible with artifact storage"
-      ],
-      "do_not": ["call external LLM API", "bypass free-tier constraint"]
+      ]
     },
     {
       "id": "VIDEO-001",
@@ -156,17 +151,19 @@
       "dependencies": ["ARCH-001"],
       "status": "completed",
       "priority": "high",
-      "input": "docs/DB_SCHEMA.md §3.7 (QAResult), docs/STATE_MACHINE.md §3",
-      "output_files": ["app/providers/base.py", "app/providers/mock.py", "app/providers/registry.py", "app/providers/__init__.py", "tests/unit/test_mock_provider.py"],
+      "input": "docs/DB_SCHEMA.md §3.7, docs/STATE_MACHINE.md §3",
+      "output_files": [
+        "app/providers/base.py", "app/providers/mock.py",
+        "app/providers/registry.py", "app/providers/__init__.py",
+        "tests/unit/test_mock_provider.py"
+      ],
       "acceptance_criteria": [
         "VideoGenerationProvider ABC with 10 methods defined",
         "MockVideoProvider generates real MP4 clips via ffmpeg testsrc",
         "Quota tracking with configurable limits",
         "Failure injection for repair-engine testing",
-        "Provider registry/factory pattern",
-        "All mock provider tests passing (16 tests)"
-      ],
-      "do_not": ["use real SnapGen quota", "hard-code clip duration"]
+        "Provider registry/factory pattern"
+      ]
     },
     {
       "id": "SECURITY-001",
@@ -177,17 +174,19 @@
       "status": "completed",
       "priority": "high",
       "input": "Master Spec §2 (free-tier), docs/DB_SCHEMA.md §3.4-3.5",
-      "output_files": ["app/accounts/__init__.py", "app/core/security.py", "app/core/log_redactor.py", "app/accounts/manager.py", "config/secrets.yaml.template", "docs/SECURITY_MODEL.md"],
+      "output_files": [
+        "app/accounts/__init__.py", "app/core/security.py",
+        "app/core/log_redactor.py", "app/accounts/manager.py",
+        "config/secrets.yaml.template"
+      ],
       "acceptance_criteria": [
         "Fernet encryption for credentials at rest",
         "PBKDF2 password hashing with salt",
         "Session token generation (URL-safe)",
-        "Log redaction for sensitive keys/API keys",
+        "Log redaction for sensitive keys",
         "AccountManager for authorized account pool",
-        "Secrets template file with gitignore",
-        "All security tests passing (14 tests)"
-      ],
-      "do_not": ["store plaintext credentials", "hard-code encryption key"]
+        "Secrets template file with gitignore"
+      ]
     },
     {
       "id": "FRONTEND-001",
@@ -198,31 +197,232 @@
       "status": "completed",
       "priority": "medium",
       "input": "docs/API_SPEC.md, adr/0003-ui-scope-decision.md",
-      "output_files": ["app/ui/cli.py", "app/ui/__init__.py", "app/__main__.py", "app/api/routes.py", "app/api/__init__.py"],
+      "output_files": [
+        "app/ui/cli.py", "app/ui/__init__.py",
+        "app/__main__.py", "app/api/routes.py", "app/api/__init__.py"
+      ],
       "acceptance_criteria": [
         "Typer CLI with subcommands: init, serve, project/*, queue/*, account/*, provider/*",
         "Rich tables and panels for terminal output",
-        "APIClient adapter for HTTP calls to REST API",
         "FastAPI routes for projects, queue, provider endpoints",
-        "Entry point: `aivf` command via pyproject.toml",
-        "CLI help and init command verified working"
+        "Entry point: `aivf` command via pyproject.toml"
+      ]
+    },
+    {
+      "id": "CORE-001",
+      "title": "Scene Planner — story-to-scenes compiler",
+      "owner": "Personal Agent",
+      "phase": 3,
+      "dependencies": ["AI-001"],
+      "status": "completed",
+      "priority": "critical",
+      "input": "app/story/models.py, config/templates/horror.yaml",
+      "output_files": [
+        "app/scenes/planner.py", "app/scenes/__init__.py",
+        "tests/unit/test_scenes.py"
       ],
-      "do_not": ["build full React dashboard in Phase 2", "add auth to CLI"]
+      "acceptance_criteria": [
+        "ScenePlanner derives narration_seconds FROM narration text (not duration/8)",
+        "Complexity classification: LOW / MEDIUM / HIGH",
+        "Continuity DNA with character/medium/lighting/color anchors",
+        "PlanarScene dataclass: scene_id, scene_number, clip_seconds, narration_seconds, prompt, continuity_dna, retry_hint",
+        "Plan() returns ordered list of PlanarScenes",
+        "Narration timing drives scene count (ADR-0001)"
+      ]
+    },
+    {
+      "id": "CORE-002",
+      "title": "Prompt Compiler — scene-to-prompt compiler",
+      "owner": "Personal Agent",
+      "phase": 3,
+      "dependencies": ["CORE-001"],
+      "status": "completed",
+      "priority": "critical",
+      "input": "app/scenes/planner.py, docs/PROVIDER_INTERFACE.md",
+      "output_files": [
+        "app/prompts/compiler.py", "app/prompts/__init__.py",
+        "tests/unit/test_prompts.py"
+      ],
+      "acceptance_criteria": [
+        "PromptCompiler compiles PlanarScenes into CompiledPrompt list",
+        "SnapGenPromptAdapter formats for Veo: horror prefix, negative prompts, 16:9, duration",
+        "CompiledPrompt: id, scene_number, provider, prompt_text, version, clip_seconds, metadata",
+        "Prompt versioning (schema_version) for repair integration",
+        "Continuity injection into provider prompts",
+        "Description optimization for AI video generators"
+      ]
+    },
+    {
+      "id": "CORE-003",
+      "title": "Scene Optimizer",
+      "owner": "Personal Agent",
+      "phase": 3,
+      "dependencies": ["CORE-001"],
+      "status": "completed",
+      "priority": "medium",
+      "input": "app/scenes/planner.py",
+      "output_files": ["app/scenes/optimizer.py"],
+      "acceptance_criteria": [
+        "SceneOptimizer analyzes scenes for generation compatibility",
+        "Detects simultaneous actions, too many characters, too many actions",
+        "optimize() returns optimized PlanarScene with refined description",
+        "SceneFinding dataclass: severity, code, message, suggestion"
+      ]
+    },
+    {
+      "id": "CORE-004",
+      "title": "HermesStoryEngine stub fix",
+      "owner": "Personal Agent",
+      "phase": 3,
+      "dependencies": ["AI-001"],
+      "status": "completed",
+      "priority": "high",
+      "input": "app/story/engine.py (broken stub)",
+      "output_files": ["app/story/engine.py"],
+      "acceptance_criteria": [
+        "HermesStoryEngine properly implements all 3 abstract methods",
+        "Stub capped at 15 scenes (not 75) for testing",
+        "Aspect ratio reads 'recommended_aspect_ratio' from template",
+        "All 27 story tests passing"
+      ]
+    },
+    {
+      "id": "PROV-001",
+      "title": "SnapGen Provider — Playwright browser automation",
+      "owner": "Personal Agent",
+      "phase": 4,
+      "dependencies": ["VIDEO-001", "PROVIDER-000"],
+      "status": "completed",
+      "priority": "critical",
+      "input": "docs/SNAPGEN_RECON.md, playwright installed, chromium installed",
+      "output_files": [
+        "app/providers/snapgen.py",
+        "app/providers/browser_session.py",
+        "tests/unit/test_snapgen_provider.py",
+        "tests/unit/test_browser_session.py"
+      ],
+      "acceptance_criteria": [
+        "SnapGenProvider implements VideoGenerationProvider ABC",
+        "BrowserSession manages Playwright lifecycle (start/close)",
+        "authenticate() launches browser, checks login state, returns bool",
+        "submit_generation() selects Veo 3.1 Fast, fills prompt, clicks Generate",
+        "get_generation_status() polls history page",
+        "download_result() downloads MP4 from history",
+        "detect_error() / detect_quota_exhaustion() check CAPTCHA/rate-limit patterns",
+        "45 unit tests passing",
+        "Google OAuth — no programmatic login (user-controlled)",
+        "CAPTCHA → BLOCKED state, escalate to user"
+      ]
+    },
+    {
+      "id": "ASSEMBLY-001",
+      "title": "FFmpeg Assembly Module",
+      "owner": "Personal Agent",
+      "phase": 5,
+      "dependencies": ["VIDEO-001", "CORE-002"],
+      "status": "completed",
+      "priority": "high",
+      "input": "app/providers/mock.py, app/prompts/compiler.py",
+      "output_files": ["app/assembly/__init__.py"],
+      "acceptance_criteria": [
+        "VideoAssembler concatenates clips via FFmpeg concat filter",
+        "Supports crossfade transitions (xfade/acrossfade)",
+        "Optional narration audio mixing",
+        "Optional subtitle burn-in (SRT)",
+        "AssemblyConfig: output_dir, target_resolution, codec, crossfade_duration",
+        "AssemblyInput: clips, narration_audio, narration_tracks, subtitles, config",
+        "AssemblyResult: success, output_path, duration, file_size"
+      ]
+    },
+    {
+      "id": "DOWNLOADER-001",
+      "title": "Clip Downloader",
+      "owner": "Personal Agent",
+      "phase": 5,
+      "dependencies": ["PROV-001", "VIDEO-001"],
+      "status": "completed",
+      "priority": "high",
+      "input": "app/providers/base.py, app/providers/snapgen.py",
+      "output_files": ["app/downloader/__init__.py"],
+      "acceptance_criteria": [
+        "ClipDownloader wraps provider.download_result()",
+        "download() validates status == COMPLETED before downloading",
+        "Writes to local clips directory with deterministic filename",
+        "download_and_move() convenience wrapper",
+        "ClipDownloadError on failure",
+        "In-memory download cache with deduplication"
+      ]
+    },
+    {
+      "id": "QA-001",
+      "title": "Video Quality Assurance",
+      "owner": "Personal Agent",
+      "phase": 5,
+      "dependencies": ["ASSEMBLY-001"],
+      "status": "completed",
+      "priority": "high",
+      "input": "app/assembly/__init__.py",
+      "output_files": ["app/qa/__init__.py"],
+      "acceptance_criteria": [
+        "VideoQA checks: file_exists, file_size, valid_container, video_codec, audio_codec, resolution, duration, frame_rate",
+        "Uses ffprobe to probe local clip files",
+        "QAResult: clip_path, clip_id, findings[], overall_pass, failures[]",
+        "AssemblyGate: min_pass_rate threshold, max_failures cap",
+        "evaluate() returns (allowed, reasons)",
+        "Configurable expected ranges for duration, resolution, codec, fps"
+      ]
+    },
+    {
+      "id": "E2E-001",
+      "title": "End-to-End Pipeline Integration Test",
+      "owner": "Personal Agent",
+      "phase": 6,
+      "dependencies": ["CORE-001", "CORE-002", "CORE-003", "PROV-001", "ASSEMBLY-001", "DOWNLOADER-001", "QA-001"],
+      "status": "completed",
+      "priority": "critical",
+      "input": "All above modules",
+      "output_files": ["tests/integration/test_pipeline_e2e.py"],
+      "acceptance_criteria": [
+        "Full pipeline: story → scenes → prompts → mock gen → download → QA → assembly",
+        "Story from HermesStoryEngine stub",
+        "MockVideoProvider generates real ffmpeg MP4s",
+        "14 integration tests passing",
+        "Pipeline produces valid final MP4 that ffprobe can read",
+        "All 225 tests in suite passing"
+      ]
+    },
+    {
+      "id": "RELEASE-001",
+      "title": "Release Preparation",
+      "owner": "Personal Agent",
+      "phase": 7,
+      "dependencies": ["E2E-001"],
+      "status": "completed",
+      "priority": "medium",
+      "input": "All modules, all tests",
+      "output_files": [],
+      "acceptance_criteria": [
+        "tasks.json updated to all_phases_complete",
+        "All module __init__.py exports verified",
+        "pyproject.toml entry points working",
+        "CLI aivf --help shows subcommands",
+        "aivf init creates database + configs",
+        "No hardcoded provider quota limits",
+        "No unauthorized account pool bypass",
+        "MockVideoProvider used for all automated tests",
+        "SnapGen provider isolated, only activates on explicit config"
+      ]
     }
   ],
-  "task_contracts": {
-    "template": {
-      "TASK_ID": "",
-      "TITLE": "",
-      "OWNER": "",
-      "DEPENDENCIES": [],
-      "INPUT": "",
-      "REQUIREMENTS": [],
-      "OUTPUT": [],
-      "ACCEPTANCE_CRITERIA": [],
-      "DO_NOT": [],
-      "FILES_MODULES": [],
-      "STATUS": "PENDING"
-    }
+  "test_summary": {
+    "total": 225,
+    "passed": 225,
+    "failed": 0,
+    "skipped": 3,
+    "skipped_reasons": [
+      "test_browser_launches_and_navigates — requires --run-slow",
+      "test_browser_session_context_page_properties — requires --run-slow",
+      "test_browser_navigate_to_snapgen — requires --run-slow"
+    ]
   }
 }

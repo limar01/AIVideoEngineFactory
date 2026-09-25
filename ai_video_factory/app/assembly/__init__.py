@@ -288,6 +288,7 @@ class VideoAssembler:
             else:
                 concat_v = "".join(f"[v{i}]" for i in range(num_clip_inputs))
                 video_chain = (
+                    f"{''.join(v_inputs)}"
                     f"{concat_v}concat=n={num_clip_inputs}:v=1[vout];"
                 )
 

@@ -1,13 +1,19 @@
 # AI Video Factory — Quota Policy Configuration
 # Source: docs/CONFIG_SPEC.md §4
+# Live-verified 2026-09-24: SnapGen free tier = 10 free generations/day/account,
+# text-to-video only (no attachments), Veo 3.1 Fast or Lite.
 policy:
   # Fallback if provider doesn't expose quota — conservative
-  fallback_daily_limit: 5
+  fallback_daily_limit: 10
   fallback_reset_time: "next_midnight_utc"
 
   refresh_interval_seconds: 30
   # When quota is exhausted, how long to wait before checking again
   quota_wait_check_interval_seconds: 300
 
-  # If multiple accounts are authorized (provider must allow this per spec §2)
-  account_rotation: false  # default: no rotation to exceed limits
+  # Authorized Account Pool: rotation is allowed because each account is a
+  # real, user-authorized login (Master Spec §2). The pool enforces the same
+  # per-account daily limit locally — it never tries to exceed what each
+  # account is entitled to.
+  account_rotation: true
+  daily_limit_per_account: 10  # SnapGen free tier (user-confirmed 2026-09-24)

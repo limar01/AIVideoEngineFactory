@@ -96,6 +96,31 @@ class SceneOptimizer:
         findings.sort(key=lambda f: severity_order.get(f.severity, 3))
         return findings
 
+    def optimize(self, scene: PlanarScene) -> PlanarScene:
+        """Analyze a scene and return an optimized version.
+
+        Returns a new PlanarScene with the description optimized based on
+        findings. Other fields are copied from the original.
+        """
+        findings = self.analyze(scene)
+        optimized_description = optimize_scene_description(scene.description, findings)
+
+        # Create a new PlanarScene with the optimized description
+        return PlanarScene(
+            scene_id=scene.scene_id,
+            scene_number=scene.scene_number,
+            act_number=scene.act_number,
+            title=scene.title,
+            description=optimized_description,
+            narration_text=scene.narration_text,
+            narration_seconds=scene.narration_seconds,
+            target_clip_seconds=scene.target_clip_seconds,
+            complexity=scene.complexity,
+            continuity_dna=scene.continuity_dna,
+            narration=scene.narration,
+            prompts=scene.prompts,
+        )
+
     def get_optimization_summary(self, findings: list[SceneFinding]) -> dict[str, Any]:
         critical = [f for f in findings if f.severity == "CRITICAL"]
         warnings = [f for f in findings if f.severity == "WARNING"]

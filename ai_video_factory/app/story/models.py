@@ -12,11 +12,17 @@ Design notes
   to JSON in the project artifact folder (ADR-0002 §5.1, persistence rule).
 * ``Scene`` mirrors ``DB_SCHEMA.md`` §3.2 so the ScenePlanner can hydrate rows
   directly from a ``StoryDoc``.
+* Extra fields allowed on Scene for continuity DNA (character names, background,
+  outfit, props, dialogue).
 """
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, ConfigDict
+from pathlib import Path
+
+from pydantic import BaseModel, Field
+from typing import Any
+
 
 # ---------------------------------------------------------------------------
 # Scene-level models (nested inside StoryDoc)
@@ -28,6 +34,9 @@ class Scene(BaseModel):
 
     Fields map 1:1 to ``DB_SCHEMA.md`` §3.2 ``scene`` table columns so the
     ScenePlanner can lift scenes directly into DB rows.
+
+    Extra fields allowed so continuity data (character names, background,
+    outfit, props, dialogue) can be attached for the prompt compiler.
     """
 
     scene_number: int = Field(ge=1, description="1-based scene index within the story")
@@ -41,6 +50,26 @@ class Scene(BaseModel):
         default=None, ge=0, description="Derived duration of narration (seconds)"
     )
     target_clip_seconds: float = Field(default=8.0, gt=0, description="Target clip length (spec §1: 8s)")
+
+    # Continuity DNA fields (for prompt compiler + character consistency)
+    characters: list[str] = Field(
+        default_factory=list, description="Character names present in this scene"
+    )
+    background_scene: str | None = Field(
+        default=None, description="Background/environment description for the scene"
+    )
+    outfit_description: str | None = Field(
+        default=None, description="Outfit description for all characters in scene"
+    )
+    props_list: list[str] = Field(
+        default_factory=list, description="Props present in the scene"
+    )
+    dialogue_lines: list[tuple[str, str]] = Field(
+        default_factory=list, description="Taglish dialogue lines (speaker, text)"
+    )
+    continuity_dna: dict[str, Any] = Field(
+        default_factory=dict, description="Continuity DNA for prompt compiler"
+    )
 
     model_config = {"extra": "forbid"}
 
@@ -92,6 +121,16 @@ class StoryDoc(BaseModel):
             scene.scene_number = i
 
     model_config = {"extra": "forbid"}
+
+
+def save_story(story: "StoryDoc", path: str | Path) -> None:
+    """Serialize a StoryDoc to JSON."""
+    Path(path).write_text(story.model_dump_json(indent=2))
+
+
+def load_story(path: str | Path) -> "StoryDoc":
+    """Load a StoryDoc from JSON."""
+    return StoryDoc.model_validate_json(Path(path).read_text())
 
 
 # ---------------------------------------------------------------------------

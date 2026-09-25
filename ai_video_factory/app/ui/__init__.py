@@ -1,4 +1,4 @@
 """UI module — CLI dashboard + API client adapter."""
-from app.ui.cli import app, main
+from app.ui.cli import app
 
-__all__ = ["app", "main"]
+__all__ = ["app"]

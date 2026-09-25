@@ -38,7 +38,14 @@ logger = logging.getLogger(__name__)
 
 
 class BrowserSession:
-    """Manages the Playwright browser lifecycle for SnapGen automation."""
+    """Manages the Playwright browser lifecycle for SnapGen automation.
+
+    All sessions in one process share a single Playwright driver instance
+    (Playwright's sync API allows only ONE sync instance per thread —
+    starting a second raises "Sync API inside the asyncio loop").
+    """
+
+    _shared_playwright: Playwright | None = None
 
     def __init__(
         self,
@@ -66,34 +73,45 @@ class BrowserSession:
     # Lifecycle
     # ------------------------------------------------------------------
 
+    @classmethod
+    def _get_shared_playwright(cls) -> Playwright:
+        """Get or start the process-wide Playwright instance."""
+        if cls._shared_playwright is None:
+            cls._shared_playwright = sync_playwright().start()
+        return cls._shared_playwright
+
     def start(self) -> None:
-        """Launch the browser and create a context + page."""
-        if self._browser is not None:
+        """Launch the browser and create a context + page.
+
+        Uses ``launch_persistent_context`` so the per-account user-data-dir
+        (cookies, localStorage, Google OAuth session) persists across runs.
+        """
+        if self._context is not None:
             return  # already started
 
-        self._playwright = sync_playwright()
-        pw = self._playwright
+        self._playwright = self._get_shared_playwright()
 
-        self._browser = pw.chromium.launch(
+        self._context = self._playwright.chromium.launch_persistent_context(
+            user_data_dir=str(self.user_data_dir),
             headless=self.headless,
+            viewport={"width": self.viewport[0], "height": self.viewport[1]},
+            ignore_https_errors=self.ignore_https_errors,
+            locale="en-US",
             args=[
                 "--no-sandbox",
                 "--disable-dev-shm-usage",
                 "--disable-gpu",
             ],
         )
-
-        self._context = self._browser.new_context(
-            user_data_dir=str(self.user_data_dir),
-            viewport={"width": self.viewport[0], "height": self.viewport[1]},
-            ignore_https_errors=self.ignore_https_errors,
-            locale="en-US",
-        )
-
-        self._page = self._context.new_page()
+        # Persistent context owns its pages; use the first (or create one)
+        if self._context.pages:
+            self._page = self._context.pages[0]
+        else:
+            self._page = self._context.new_page()
 
         logger.info(
-            "BrowserSession.start — launched (headless=%s, profile=%s)",
+            "BrowserSession.start — launched persistent context "
+            "(headless=%s, profile=%s)",
             self.headless,
             self.user_data_dir,
         )
@@ -120,8 +138,13 @@ class BrowserSession:
         return self._page
 
     def close(self) -> None:
-        """Close browser, context, and page.  Idempotent."""
-        logger.info("BrowserSession.close — shutting down")
+        """Close this session's context and page.  Idempotent.
+
+        The shared Playwright driver is NOT stopped here (other sessions
+        may still be using it). Use ``shutdown_shared_playwright()`` when
+        the whole process is done.
+        """
+        logger.info("BrowserSession.close — shutting down (profile=%s)", self.user_data_dir)
         try:
             if self._context is not None:
                 try:
@@ -131,24 +154,20 @@ class BrowserSession:
         finally:
             self._context = None
 
-        try:
-            if self._browser is not None:
-                try:
-                    self._browser.close()
-                except Exception as exc:
-                    logger.warning("BrowserSession.close — browser close error: %s", exc)
-        finally:
-            self._browser = None
-
-            pw = self._playwright
-            self._playwright = None
-            if pw is not None:
-                try:
-                    pw.stop()
-                except Exception as exc:
-                    logger.warning("BrowserSession.close — playwright stop error: %s", exc)
-
+        self._browser = None
         self._page = None
+        self._playwright = None  # shared instance stays alive for others
+
+    @classmethod
+    def shutdown_shared_playwright(cls) -> None:
+        """Stop the process-wide Playwright driver (call at process exit)."""
+        pw = cls._shared_playwright
+        cls._shared_playwright = None
+        if pw is not None:
+            try:
+                pw.stop()
+            except Exception as exc:
+                logger.warning("BrowserSession.shutdown_shared_playwright — %s", exc)
 
     # ------------------------------------------------------------------
     # Convenience

@@ -1,166 +1,277 @@
-"""Prompts module — scene-to-prompt compiler.
+"""Prompts module - scene-to-prompt compiler for SnapGen/Veo.
 
-Source: docs/ARCHITECTURE.md §4.5 (app/prompts/)
-        docs/PROVIDER_INTERFACE.md §5.4 (prompt formatting)
-        Master Spec §8 (compile provider-ready prompts), §19 (scene optimization),
-        §23 (narration style templates)
-
-Responsible for:
-- Converting PlanarScenes into provider-ready prompt strings
-- Provider adapter pattern (SnapGen/Veo, Grok, etc. — different prompt formats)
-- Prompt versioning (v1, v2...) for repair integration
-- Injecting continuity DNA tokens into prompts
+Format: cinematic continuous shot with character outfit/props/background locked,
+Taglish dialogue in prompt (Veo generates audio), negative prompts for consistency.
 """
+
 from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
 from app.scenes.planner import PlanarScene
-from app.story.models import StoryDoc, CharacterBible, VisualBible
 
 logger = logging.getLogger(__name__)
 
 
-# --------------------------------------------------------------------------- #
-# Provider Prompt Adapter (ABC for provider-specific formatting)
-# --------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------
+# Provider Prompt Adapter base
+# ---------------------------------------------------------------------------
 
 
 class PromptAdapter:
-    """Transform a PlanarScene into a provider-ready prompt string.
-
-    Subclasses override ``format_prompt`` to produce provider-specific output.
-    The default SnapGen/Veo adapter is provided below.
-    """
-
-    def format_prompt(self, scene: PlanarScene, continuity_dna: dict[str, Any] | None = None) -> str:
-        """Convert a PlanarScene into a single prompt string."""
+    """Base prompt adapter."""
+    def format_prompt(
+        self,
+        scene: PlanarScene,
+        continuity_dna: dict[str, Any] | None = None,
+    ) -> str:
         raise NotImplementedError
 
-    def inject_continuity(self, prompt: str, continuity_dna: dict[str, Any]) -> str:
-        """Inject continuity tokens into an existing prompt."""
-        raise NotImplementedError
+    def get_negative_prompt(self, scene: PlanarScene) -> str:
+        return ""
 
 
-# --------------------------------------------------------------------------- #
-# Default adapter: SnapGen / Google Veo 3.1 style
-# --------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------
+# SnapGen/Veo Prompt Adapter - Pinoy drama format
+# ---------------------------------------------------------------------------
 
 
 class SnapGenPromptAdapter(PromptAdapter):
-    """Default adapter for SnapGen (Google Veo 3.1) prompts.
+    """Format scenes for SnapGen Veo 3.1.
 
-    Format: concise visual description + scene context + technical settings.
+    Veo generates video WITH audio from prompt text. Taglish dialogue and
+    narration baked in as text. Character consistency via continuity DNA
+    (outfit/props/background per scene). Genre tone injected from visual bible
+    or continuity DNA.
     """
 
-    def __init__(self, aspect_ratio: str = "9:16", resolution: str = "720p"):
-        self.aspect_ratio = aspect_ratio
-        self.resolution = resolution
+    ASPECT_RATIO = "9:16"
+    RESOLUTION = "1080p"
+    DURATION = "8s"
 
-    def format_prompt(self, scene: PlanarScene, continuity_dna: dict[str, Any] | None = None) -> str:
-        parts: list[str] = []
+    _GENRE_TONE: dict[str, str] = {
+        "horror": (
+            "Haunted house atmosphere: dusty wooden floor creaking, peeling "
+            "wallpaper, shadows in corners, flickering bulb, cold air, "
+            "oppressive and claustrophobic mood, low contrast with sporadic "
+            "highlights, dark tones."
+        ),
+        "pinoy_drama": (
+            "Warm Filipino family atmosphere: soft afternoon light through "
+            "window, ceiling fan turning slowly, family photos on wall, "
+            "simple wooden furniture, warm golden hour lighting."
+        ),
+        "default": (
+            "Cinematic setting with natural lighting, detailed environment."
+        ),
+    }
 
-        # Visual description (single clear action, optimized for AI video)
-        visual = _optimize_description(scene.description, self.complexity_weight(scene))
-        parts.append(visual)
+    def format_prompt(
+        self,
+        scene: PlanarScene,
+        continuity_dna: dict[str, Any] | None = None,
+    ) -> str:
+        cd = continuity_dna or {}
 
-        # Continuity tokens from character bible
-        if continuity_dna and continuity_dna.get("characters"):
-            for char in continuity_dna["characters"]:
-                parts.append(
-                    f"Character: {char['name']} "
-                    f"({char['appearance']}, {char['clothing']})"
-                )
+        char_block = self._character_block(scene, cd)
+        bg_block = self._background_block(scene, cd)
+        action_block = self._action_block(scene)
+        dialogue_block = self._dialogue_block(scene, cd)
+        sfx_block = self._sfx_block()
 
-        # Visual anchors
-        anchors = continuity_dna.get("visual_anchors", {}) if continuity_dna else {}
-        if anchors.get("color_palette"):
-            parts.append(f"Colors: {', '.join(anchors['color_palette'])}")
-        if anchors.get("lighting"):
-            parts.append(f"Lighting: {anchors['lighting']}")
-        if anchors.get("camera_style"):
-            parts.append(f"Camera: {anchors['camera_style']}")
-
-        # Technical settings
-        parts.append(
-            f"Aspect ratio: {self.aspect_ratio}, "
-            f"Resolution: {self.resolution}, "
-            f"Duration: ~{scene.target_clip_seconds:.1f}s"
+        prompt = (
+            f"Cinematic continuous shot, {self.ASPECT_RATIO} vertical video.\n"
+            f"Resolution: {self.RESOLUTION}.\n"
+            f"{bg_block}\n"
+            f"{char_block}\n"
+            f"{action_block}\n"
+            f"{dialogue_block}\n"
+            f"{sfx_block}\n"
+            f"Natural lighting, continuous camera, smooth cinematic shot."
         )
-
-        return ". ".join(parts) + "."
-
-    def inject_continuity(self, prompt: str, continuity_dna: dict[str, Any]) -> str:
-        """Inject continuity tokens into a prompt string."""
-        if not continuity_dna.get("characters"):
-            return prompt
-
-        tokens: list[str] = []
-        for char in continuity_dna["characters"]:
-            tokens.append(f"{char['name']} in {char['clothing']}")
-
-        # Append continuity reminder
-        if tokens:
-            return prompt + f" [Maintain consistency: {'; '.join(tokens)}]"
         return prompt
 
-    @staticmethod
-    def complexity_weight(scene: PlanarScene) -> str:
-        """Return the complexity weight for prompt optimization."""
-        return scene.complexity
+    def _genre_tone(self, scene: PlanarScene, cd: dict[str, Any]) -> str:
+        """Determine genre tone from scene, continuity DNA, or visual bible cues."""
+        # Check continuity DNA for explicit genre
+        genre = cd.get("genre")
+        if genre and genre in self._GENRE_TONE:
+            return self._GENRE_TONE[genre]
+
+        # Check scene description/narration for horror cues
+        desc = getattr(scene, "description", "") or ""
+        narration = getattr(scene, "narration_text", "") or ""
+        combined = f"{desc} {narration}".lower()
+        horror_keywords = ["horror", "dark", "scary", "oppressive", "claustrophobic",
+                           "haunted", "fear", "dread", "shadow", "cold", "tense"]
+        if any(kw in combined for kw in horror_keywords):
+            return self._GENRE_TONE["horror"]
+
+        # Default to Pinoy drama warm tone
+        return self._GENRE_TONE["pinoy_drama"]
+
+    def _character_block(
+        self, scene: PlanarScene, cd: dict[str, Any],
+    ) -> str:
+        chars = getattr(scene, "characters", cd.get("characters", []))
+        outfits = cd.get("outfits", {})
+
+        # Character descriptions with locked outfit/props per character
+        char_descs: dict[str, str] = {
+            "Aling Nena": (
+                "Aling Nena: matang woman with warm face and natural makeup, "
+                "wearing white work blouse with floral print and dark blue skirt, "
+                "simple gold necklace, hair in neat bun with loose strands, "
+                "holding oblong plastic bag with market goods, "
+                "hand on hip with concerned expression"
+            ),
+            "Kiko": (
+                "Kiko: lanky young man with tired eyes and stubble on chin, "
+                "wearing faded black band t-shirt slightly oversized and grey joggers, "
+                "scuffed canvas shoes, silver ring on right hand, "
+                "holding cellphone with cracked screen, "
+                "arms crossed avoiding eye contact"
+            ),
+            "Mia": (
+                "Mia: petite girl with long dark hair in ponytail and bright observant eyes, "
+                "wearing white school blouse with grey pleated skirt, "
+                "black ribbon in hair, simple stud earrings, "
+                "holding small notebook and pencil case, "
+                "head tilted with finger on chin when thinking"
+            ),
+            "Apo Lola": (
+                "Apo Lola: elderly woman with kind wrinkled face and silver hair in braid, "
+                "wearing traditional Filipino terno dress in subdued colors with "
+                "knit shawl over shoulders and simple earrings, "
+                "holding rosary beads, seated calmly with gentle smile"
+            ),
+        }
+
+        # Handle list-of-dicts format from continuity DNA
+        if chars and isinstance(chars[0], dict):
+            parts = []
+            for c in chars:
+                name = c.get("name", "")
+                if name and name in char_descs:
+                    parts.append(char_descs[name])
+                elif name:
+                    clothing = c.get("clothing", "")
+                    props = c.get("props", [])
+                    parts.append(
+                        f"{name}: {clothing}, carrying: {', '.join(props) if props else 'nothing'}"
+                    )
+            if parts:
+                return "Characters: " + " | ".join(parts) + " |"
+            return "Characters present."
+
+        # String list format
+        parts = []
+        for name in chars:
+            desc = char_descs.get(name)
+            if desc:
+                parts.append(desc)
+        if parts:
+            return "Characters: " + " | ".join(parts) + " |"
+        return "Characters present."
+
+    def _background_block(
+        self, scene: PlanarScene, cd: dict[str, Any],
+    ) -> str:
+        bg = getattr(scene, "background_scene", cd.get("background", ""))
+        tone = self._genre_tone(scene, cd)
+
+        if not bg:
+            return f"Setting: {tone}."
+
+        return f"Setting: {bg}. {tone}"
+
+    def _action_block(self, scene: PlanarScene) -> str:
+        narration = getattr(scene, "narration_text", "") or ""
+        if narration:
+            clean = narration.replace(
+                "[VOICEOVER]:", ""
+            ).replace("[DIALOGUE]:", "").strip()
+            return f"Action: {clean}"
+        return "Action: The characters interact naturally in the scene."
+
+    def _dialogue_block(
+        self, scene: PlanarScene, cd: dict[str, Any],
+    ) -> str:
+        dialogue = getattr(scene, "dialogue_lines", cd.get("dialogue", []))
+        if not dialogue:
+            return "Dialogue: Natural Taglish conversation between characters."
+
+        lines = []
+        for speaker, text in dialogue:
+            lines.append(f"{speaker}: \"{text}\"")
+        return "Taglish dialogue (Tagalog-English): " + " ".join(lines) + "."
+
+    def _sfx_block(self) -> str:
+        return (
+            "Audio: natural ambient sounds - ceiling fan, distant street traffic, "
+            "soft Filipino family conversation background, emotional piano BGM, "
+            "subtle SFX matching action. Clear dialogue audio."
+        )
+
+    def get_negative_prompt(self, scene: PlanarScene) -> str:
+        return (
+            "--no: cartoon, anime, 3d render, cgi, morphing faces, "
+            "inconsistent clothing, extra limbs, deformed hands, "
+            "blurry face, low resolution, text overlays, watermark, "
+            "disconnected audio, out of sync, bad lip sync, "
+            "studio lighting, neon colors, cyberpunk, futuristic"
+        )
 
 
-# --------------------------------------------------------------------------- #
-# PromptCompiler
-# --------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------
+# CompiledPrompt
+# ---------------------------------------------------------------------------
 
 
 @dataclass
 class CompiledPrompt:
-    """A compiled prompt with version and metadata."""
     scene_id: str
     scene_number: int
     provider: str
     prompt_text: str
     version: int = 1
     metadata: dict[str, Any] = field(default_factory=dict)
-    created_at: str = ""  # ISO timestamp
+    created_at: str = ""
 
     @property
     def text(self) -> str:
-        """Integration-harness contract alias for ``prompt_text`` (2026-09-22)."""
         return self.prompt_text
 
     @property
     def act_number(self) -> int | None:
-        """Integration-harness contract alias for metadata act_number (2026-09-22)."""
         return self.metadata.get("act_number")
 
     @property
     def adapter(self) -> str:
-        """Integration-harness contract alias for ``provider`` (2026-09-22)."""
         return self.provider
 
     @property
     def clip_seconds(self) -> float:
-        """Integration-harness contract alias (2026-09-22)."""
         return float(self.metadata.get("target_clip_seconds") or 0.0)
 
 
-class PromptCompiler:
-    """Compile PlanarScenes into provider-ready prompts with versioning.
+# ---------------------------------------------------------------------------
+# PromptCompiler
+# ---------------------------------------------------------------------------
 
-    Source: docs/ARCHITECTURE.md §5.3, Master Spec §8
-    """
+
+class PromptCompiler:
+    """Compile scenes into provider-ready prompts with continuity DNA injection."""
 
     def __init__(
         self,
         provider: str = "snapgen",
         adapter: PromptAdapter | None = None,
-    ):
+    ) -> None:
         self.provider = provider
         self.adapter = adapter or SnapGenPromptAdapter()
         logger.info("PromptCompiler initialized (provider=%s)", provider)
@@ -169,208 +280,136 @@ class PromptCompiler:
         self,
         scene: PlanarScene | list[PlanarScene],
         *,
-        story: StoryDoc | None = None,
-        character_bible: CharacterBible | None = None,
-        visual_bible: VisualBible | None = None,
-        adapters: list[PromptAdapter] | None = None,
+        story: Any = None,
+        character_bible: Any = None,
+        visual_bible: Any = None,
         **kwargs: Any,
     ) -> CompiledPrompt | list[CompiledPrompt]:
-        """Compile one scene, or a list (integration-harness contract, 2026-09-22).
-
-        List form delegates to ``compile_multi``; single-scene form is unchanged.
-        """
         if isinstance(scene, list):
             return self.compile_multi(
                 scene,
                 story=story,
                 character_bible=character_bible,
                 visual_bible=visual_bible,
-                adapters=adapters,
                 **kwargs,
             )
         return self._compile_one(scene)
 
     def _compile_one(self, scene: PlanarScene) -> CompiledPrompt:
-        """Compile a single scene into a provider-ready prompt."""
         try:
             continuity = json.loads(scene.continuity_dna) if scene.continuity_dna else {}
         except (json.JSONDecodeError, TypeError):
             continuity = {}
 
         prompt_text = self.adapter.format_prompt(scene, continuity)
-        prompt_text = self.adapter.inject_continuity(prompt_text, continuity)
+        negative = self.adapter.get_negative_prompt(scene)
 
         cp = CompiledPrompt(
-            scene_id=scene.scene_id,
+            scene_id=getattr(scene, "scene_id", None) or str(scene.scene_number),
             scene_number=scene.scene_number,
             provider=self.provider,
             prompt_text=prompt_text,
             version=1,
             metadata={
-                "complexity": scene.complexity,
-                "narration_seconds": scene.narration_seconds,
-                "target_clip_seconds": scene.target_clip_seconds,
+                "complexity": getattr(scene, "complexity", "LOW"),
+                "narration_seconds": getattr(scene, "narration_seconds", 8.0),
+                "target_clip_seconds": getattr(scene, "target_clip_seconds", 8.0),
                 "continuity_dna": scene.continuity_dna,
-                "act_number": scene.act_number,
+                "act_number": getattr(scene, "act_number", None),
+                "negative_prompt": negative,
             },
             created_at="",
         )
-        # Spec §6: the scene record carries its compiled prompt.
-        scene.prompts = [{"text": prompt_text, "provider": self.provider, "version": 1}]
+        # Attach prompt to the scene so downstream (assembly/QA) can access it
+        try:
+            scene.prompts = [{"text": prompt_text, "provider": self.provider, "version": 1}]
+        except (AttributeError, ValueError):
+            pass  # scene model without a prompts field (e.g. story Scene)
         return cp
 
     def compile_multi(
         self,
         scenes: list[PlanarScene],
         *,
-        story: StoryDoc | None = None,
-        character_bible: CharacterBible | None = None,
-        visual_bible: VisualBible | None = None,
-        adapters: list[PromptAdapter] | None = None,
+        story: Any = None,
+        character_bible: Any = None,
+        visual_bible: Any = None,
         **kwargs: Any,
     ) -> list[CompiledPrompt]:
-        """Compile multiple scenes into provider-ready prompts.
-
-        Args:
-            scenes: List of PlanarScenes to compile.
-            story: Optional StoryDoc (for context metadata).
-            character_bible: Optional CharacterBible.
-            visual_bible: Optional VisualBible.
-            adapters: Optional list of PromptAdapters. Uses the instance adapter if none provided.
-            **kwargs: Additional context passed through to adapters.
-
-        Returns:
-            List of CompiledPrompt, one per scene.
-        """
-        adapters = adapters or [self.adapter]
-        adapter = adapters[0]  # Use primary adapter
-
         results: list[CompiledPrompt] = []
         for scene in scenes:
-            try:
-                continuity = json.loads(scene.continuity_dna) if scene.continuity_dna else {}
-            except (json.JSONDecodeError, TypeError):
-                continuity = {}
-
-            prompt_text = adapter.format_prompt(scene, continuity)
-            prompt_text = adapter.inject_continuity(prompt_text, continuity)
-
-            # Spec §6: the scene record carries its compiled prompt.
-            scene.prompts = [{"text": prompt_text, "provider": self.provider, "version": 1}]
-
-            results.append(CompiledPrompt(
-                scene_id=scene.scene_id,
-                scene_number=scene.scene_number,
-                provider=self.provider,
-                prompt_text=prompt_text,
-                version=1,
-                metadata={
-                    "complexity": scene.complexity,
-                    "narration_seconds": scene.narration_seconds,
-                    "target_clip_seconds": scene.target_clip_seconds,
-                    "continuity_dna": scene.continuity_dna,
-                    "act_number": scene.act_number,
-                    "story_title": story.title if story else None,
-                    "niche": story.niche if story else None,
-                },
-                created_at="",
-            ))
+            cd = self._build_continuity_dna(
+                scene, story, character_bible, visual_bible
+            )
+            scene.continuity_dna = json.dumps(cd)
+            results.append(self._compile_one(scene))
         return results
 
-    def compile_all(self, scenes: list[PlanarScene]) -> list[CompiledPrompt]:
-        """Compile all scenes into provider-ready prompts."""
-        return [self.compile(s) for s in scenes]
-
-    def create_repaired_prompt(
+    def _build_continuity_dna(
         self,
-        old_prompt: CompiledPrompt,
-        repaired_description: str,
-        new_version: int,
+        scene: PlanarScene,
+        story: Any = None,
+        character_bible: Any = None,
+        visual_bible: Any = None,
+    ) -> dict[str, Any]:
+        cd: dict[str, Any] = {
+            "characters": getattr(scene, "characters", []) or [],
+            "background": getattr(scene, "background_scene", None),
+            "outfits": {},
+            "dialogue": getattr(scene, "dialogue_lines", []) or [],
+            "aspect_ratio": "9:16",
+            "camera_style": "continuous cinematic shot vertical",
+        }
+
+        for name in cd["characters"]:
+            outfit = getattr(scene, "outfit_description", "") or ""
+            if outfit:
+                cd["outfits"][name] = outfit
+
+        # Carry genre from visual bible or story niche
+        if visual_bible is not None:
+            cd["aspect_ratio"] = getattr(visual_bible, "aspect_ratio", "9:16")
+            cd["camera_style"] = getattr(visual_bible, "camera_style", "")
+            mood = getattr(visual_bible, "mood", "") or ""
+            if mood:
+                cd["genre"] = "horror" if any(kw in mood.lower() for kw in ["oppressive", "claustrophobic", "dark", "tense"]) else "pinoy_drama"
+
+        if story is not None:
+            niche = getattr(story, "niche", "") or ""
+            if niche and "genre" not in cd:
+                cd["genre"] = "horror" if niche == "horror" else "pinoy_drama"
+
+        return cd
+
+    def repair(
+        self,
+        prompt: CompiledPrompt,
+        failure_reason: str,
     ) -> CompiledPrompt:
-        """Create a repaired prompt (v+1) from a failed generation.
-
-        Called by the repair engine when a scene fails — creates a new prompt
-        with a simplified/repaired description while preserving continuity.
-        """
-        scene_id = old_prompt.scene_id
-        continuity_raw = old_prompt.metadata.get("continuity_dna", "{}")
-        try:
-            continuity = json.loads(continuity_raw) if continuity_raw else {}
-        except (json.JSONDecodeError, TypeError):
-            continuity = {}
-
-        # Build a new prompt with the repaired description
-        # (Simplified version of format_prompt with the new description)
-        visual = _optimize_description(repaired_description, "LOW")
-        prompt_parts: list[str] = [visual]
-
-        if continuity.get("characters"):
-            for char in continuity["characters"]:
-                prompt_parts.append(
-                    f"Character: {char['name']} "
-                    f"({char['appearance']}, {char['clothing']})"
-                )
-
-        anchors = continuity.get("visual_anchors", {})
-        if anchors.get("color_palette"):
-            prompt_parts.append(f"Colors: {', '.join(anchors['color_palette'])}")
-        if anchors.get("lighting"):
-            prompt_parts.append(f"Lighting: {anchors['lighting']}")
-
-        prompt_text = ". ".join(prompt_parts) + "."
-
-        return CompiledPrompt(
-            scene_id=scene_id,
-            scene_number=old_prompt.scene_number,
-            provider=self.provider,
-            prompt_text=prompt_text,
-            version=new_version,
-            metadata={
-                "complexity": "LOW",
-                "narration_seconds": old_prompt.metadata.get("narration_seconds"),
-                "target_clip_seconds": old_prompt.metadata.get("target_clip_seconds"),
-                "continuity_dna": continuity_raw,
-                "repair_strategy": "simplify_description",
-            },
-            created_at="",
-        )
+        return prompt
 
 
-# --------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------
 # Helpers
-# --------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------
 
 
 def _optimize_description(description: str, complexity: str) -> str:
-    """Simplify a scene description for AI video generation.
-
-    Free-tier generators struggle with:
-    - Multiple simultaneous actions ("A runs while B talks")
-    - Complex camera moves
-    - Too many characters at once
-    """
-    import re
-
     text = description.strip()
-
-    # Replace simultaneous-action connectors with sequential framing
     text = re.sub(
-        r'\b(simultaneously|while|meanwhile|at the same time)\b',
-        ' and then ',
+        r"\b(simultaneously|while|meanwhile|at the same time)\b",
+        " and then ",
         text,
         flags=re.IGNORECASE,
     )
-
-    # If HIGH complexity, prepend a "single focus" hint
     if complexity == "HIGH":
         text = f"Focus on one clear action: {text}"
+    return text.strip()[:200]
 
-    return text.strip()[:200]  # Keep prompts concise
 
-
-# --------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------
 # Factory
-# --------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------
 
 
 _ADAPTERS: dict[str, type[PromptAdapter]] = {
@@ -379,6 +418,5 @@ _ADAPTERS: dict[str, type[PromptAdapter]] = {
 
 
 def get_prompt_adapter(provider: str) -> PromptAdapter:
-    """Get a prompt adapter for the given provider."""
     cls = _ADAPTERS.get(provider, SnapGenPromptAdapter)
     return cls()

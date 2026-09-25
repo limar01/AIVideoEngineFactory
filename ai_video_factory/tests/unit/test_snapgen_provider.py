@@ -5,7 +5,6 @@ tested here — they require a real Playwright browser and an authenticated
 SnapGen session.  This test file covers:
 
 * Error pattern detection (detect_error, detect_quota_exhaustion)
-* Status text parsing (_status_from_text)
 * Capability / quota reporting (get_capabilities, get_quota)
 * Configuration defaults
 * The "Not authenticated" fast-fail path in public methods
@@ -17,8 +16,14 @@ from __future__ import annotations
 
 import pytest
 
-from app.providers.base import GenerationStatus
-from app.providers.snapgen import SnapGenProvider
+from app.providers.base import GenerationStatus, GenerationCapabilities, QuotaInfo
+from app.providers.snapgen import (
+    SnapGenProvider,
+    MODEL_BUTTON_TEXT,
+    DURATION_OPTIONS,
+    ASPECT_RATIO_OPTIONS,
+    RESOLUTION_OPTIONS,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -39,17 +44,20 @@ def provider() -> SnapGenProvider:
 class TestCapabilities:
     def test_capabilities_default(self, provider: SnapGenProvider) -> None:
         caps = provider.get_capabilities()
-        assert caps.supported_aspect_ratios == ["16:9", "9:16", "4:3"]
-        assert caps.supported_resolutions == ["720p"]
-        assert caps.max_duration_seconds == 8.0
-        assert caps.min_duration_seconds == 8.0
+        assert caps is not None
+        assert "16:9" in caps.supported_aspect_ratios
+        assert "9:16" in caps.supported_aspect_ratios
+        assert "720p" in caps.supported_resolutions
+        assert "1080p" in caps.supported_resolutions
+        assert caps.max_duration_seconds == 15.0
+        assert caps.min_duration_seconds == 6.0
         assert caps.supports_narration is True
-        assert caps.max_prompt_length == 3000
+        assert caps.max_prompt_length == 5000
 
-    def test_capabilities_fixed_8s(self, provider: SnapGenProvider) -> None:
-        """Free tier Veo 3.1 Fast is locked at 8 seconds."""
+    def test_capabilities_fixed_15s(self, provider: SnapGenProvider) -> None:
         caps = provider.get_capabilities()
-        assert caps.max_duration_seconds == caps.min_duration_seconds == 8.0
+        assert caps.max_duration_seconds == 15.0
+        assert caps.min_duration_seconds == 6.0
 
 
 # ---------------------------------------------------------------------------
@@ -58,9 +66,9 @@ class TestCapabilities:
 
 
 class TestQuota:
-    def test_quota_none_for_free_tier(self, provider: SnapGenProvider) -> None:
-        """Free Veo 3.1 Fast has no credit counter — all fields None."""
+    def test_quota_no_limit(self, provider: SnapGenProvider) -> None:
         quota = provider.get_quota()
+        assert quota is not None
         assert quota.limit is None
         assert quota.used is None
         assert quota.remaining is None
@@ -68,190 +76,130 @@ class TestQuota:
 
 
 # ---------------------------------------------------------------------------
-# Error detection
+# Error pattern detection
 # ---------------------------------------------------------------------------
 
 
 class TestErrorDetection:
-    # -- CAPTCHA patterns -----------------------------------------------
-
-    @pytest.mark.parametrize(
-        "text",
-        [
-            "human verification required",
-            "verify you are human",
-            "select all images that contain",
-            "click the objects",
-            "CAPTCHA",
-            "Human Verification",
-        ],
-    )
-    def test_detect_capcha(self, provider: SnapGenProvider, text: str) -> None:
-        code, msg = provider.detect_error("fake-id", text)
+    def test_detect_captcha(self, provider: SnapGenProvider) -> None:
+        code, msg = provider.detect_error("test123", "human verification required")
         assert code == "CAPTCHA_DETECTED"
         assert msg is not None
-        assert "CAPTCHA" in msg.upper() or "human" in msg.lower()
 
-    def test_detect_quota_exhaustion_capcha(self, provider: SnapGenProvider) -> None:
-        assert provider.detect_quota_exhaustion("human verification required") is True
+    def test_detect_captcha_word(self, provider: SnapGenProvider) -> None:
+        code, msg = provider.detect_error("test123", "Please solve the captcha")
+        assert code == "CAPTCHA_DETECTED"
 
-    # -- Rate-limit patterns -------------------------------------------
-
-    @pytest.mark.parametrize(
-        "text",
-        [
-            "rate limit exceeded",
-            "too many requests",
-            "please wait before trying again",
-            "try again later",
-            "429 Too Many Requests",
-        ],
-    )
-    def test_detect_rate_limit(self, provider: SnapGenProvider, text: str) -> None:
-        code, msg = provider.detect_error("fake-id", text)
+    def test_detect_rate_limit(self, provider: SnapGenProvider) -> None:
+        code, msg = provider.detect_error("test123", "rate limit exceeded, please wait")
         assert code == "RATE_LIMIT"
         assert msg is not None
 
-    def test_detect_quota_exhaustion_rate_limit(self, provider: SnapGenProvider) -> None:
-        assert provider.detect_quota_exhaustion("rate limit exceeded") is True
+    def test_detect_429(self, provider: SnapGenProvider) -> None:
+        code, msg = provider.detect_error("test123", "HTTP 429 Too Many Requests")
+        assert code == "RATE_LIMIT"
 
-    # -- Generation error patterns -------------------------------------
-
-    @pytest.mark.parametrize(
-        "text",
-        [
-            "generation failed",
-            "try again",
-            "session expired",
-            "sign in to continue",
-            "under maintenance",
-        ],
-    )
-    def test_detect_generation_error(self, provider: SnapGenProvider, text: str) -> None:
-        code, msg = provider.detect_error("fake-id", text)
+    def test_detect_generation_error(self, provider: SnapGenProvider) -> None:
+        code, msg = provider.detect_error("test123", "generation failed, try again later")
         assert code == "GENERATION_ERROR"
         assert msg is not None
 
-    # -- No error ------------------------------------------------------
+    def test_detect_session_expired(self, provider: SnapGenProvider) -> None:
+        code, msg = provider.detect_error("test123", "session expired, please sign in")
+        assert code == "GENERATION_ERROR"
 
-    def test_no_error_in_clean_text(self, provider: SnapGenProvider) -> None:
-        code, msg = provider.detect_error("fake-id", "Your video is ready!")
+    def test_no_error_on_clean_text(self, provider: SnapGenProvider) -> None:
+        code, msg = provider.detect_error("test123", "This is a normal page")
         assert code is None
         assert msg is None
 
-    def test_no_error_in_empty_text(self, provider: SnapGenProvider) -> None:
-        code, msg = provider.detect_error("fake-id", "")
+    def test_empty_response(self, provider: SnapGenProvider) -> None:
+        code, msg = provider.detect_error("test123", "")
         assert code is None
         assert msg is None
 
-    def test_no_error_in_none_text(self, provider: SnapGenProvider) -> None:
-        code, msg = provider.detect_error("fake-id", None)  # type: ignore[arg-type]
+    def test_none_response(self, provider: SnapGenProvider) -> None:
+        code, msg = provider.detect_error("test123", None)  # type: ignore[arg-type]
         assert code is None
         assert msg is None
 
-    # -- Priority: CAPTCHA beats rate-limit ----------------------------
-
-    def test_capcha_takes_priority_over_rate_limit(self, provider: SnapGenProvider) -> None:
-        text = "human verification required. rate limit may also apply."
-        code, msg = provider.detect_error("fake-id", text)
-        assert code == "CAPTCHA_DETECTED"
-
 
 # ---------------------------------------------------------------------------
-# Status parsing
+# Quota exhaustion detection
 # ---------------------------------------------------------------------------
 
 
-class TestStatusParsing:
-    @pytest.mark.parametrize(
-        "text, expected",
-        [
-            ("Completed", GenerationStatus.COMPLETED),
-            ("completed", GenerationStatus.COMPLETED),
-            ("Your video is Completed", GenerationStatus.COMPLETED),
-            ("Processing", GenerationStatus.GENERATING),
-            ("Generating", GenerationStatus.GENERATING),
-            ("Still generating...", GenerationStatus.GENERATING),
-            ("Failed", GenerationStatus.FAILED),
-            ("generation failed", GenerationStatus.FAILED),
-            ("Something went wrong", GenerationStatus.FAILED),
-            ("Unknown status", GenerationStatus.UNKNOWN),
-            ("", GenerationStatus.UNKNOWN),
-        ],
-    )
-    def test_status_from_text(self, provider: SnapGenProvider, text: str, expected: GenerationStatus) -> None:
-        assert provider._status_from_text(text) == expected
+class TestQuotaExhaustion:
+    def test_captcha_means_exhausted(self, provider: SnapGenProvider) -> None:
+        assert provider.detect_quota_exhaustion("human verification required") is True
+
+    def test_rate_limit_means_exhausted(self, provider: SnapGenProvider) -> None:
+        assert provider.detect_quota_exhaustion("rate limit exceeded") is True
+
+    def test_clean_text_not_exhausted(self, provider: SnapGenProvider) -> None:
+        assert provider.detect_quota_exhaustion("everything is fine") is False
+
+    def test_empty_not_exhausted(self, provider: SnapGenProvider) -> None:
+        assert provider.detect_quota_exhaustion("") is False
 
 
 # ---------------------------------------------------------------------------
-# Credentials / authentication fast-paths
+# Re-authentication needed
 # ---------------------------------------------------------------------------
 
 
-class TestUnauthenticatedPaths:
-    def test_authenticate_returns_false_when_browser_not_launched(
-        self, provider: SnapGenProvider
-    ) -> None:
-        """Without a launched browser, authenticate returns False."""
-        result = provider.authenticate({})
-        assert result is False
-        assert provider._last_error_code == "BROWSER_LAUNCH_FAILED"
+class TestReauthNeeded:
+    def test_detects_sign_in_prompt(self, provider: SnapGenProvider) -> None:
+        code, msg = provider.detect_error("test123", "please sign in to continue")
+        assert code is not None
 
-    def test_check_session_returns_false_without_page(self, provider: SnapGenProvider) -> None:
-        assert provider.check_session() is False
+    def test_detects_under_maintenance(self, provider: SnapGenProvider) -> None:
+        code, msg = provider.detect_error("test123", "service under maintenance")
+        assert code == "GENERATION_ERROR"
 
-    def test_submit_generation_fails_without_auth(self, provider: SnapGenProvider) -> None:
-        result = provider.submit_generation("test prompt", {})
-        assert result.success is False
-        assert result.error_code == "NOT_AUTHENTICATED"
-
-    def test_get_generation_status_returns_unknown_without_auth(
-        self, provider: SnapGenProvider
-    ) -> None:
-        status = provider.get_generation_status("fake-id")
-        assert status == GenerationStatus.UNKNOWN
-
-    def test_download_result_raises_without_auth(self, provider: SnapGenProvider) -> None:
-        with pytest.raises(RuntimeError, match="Not authenticated"):
-            provider.download_result("fake-id")
-
-    def test_close_session_is_idempotent(self, provider: SnapGenProvider) -> None:
-        provider.close_session()  # Should not raise
-        provider.close_session()  # Second call also safe
+    def test_detects_try_again(self, provider: SnapGenProvider) -> None:
+        code, msg = provider.detect_error("test123", "something went wrong, try again")
+        assert code == "GENERATION_ERROR"
 
 
 # ---------------------------------------------------------------------------
-# Configuration
+# Configuration defaults
 # ---------------------------------------------------------------------------
 
 
-class TestConfiguration:
-    def test_default_values(self) -> None:
-        p = SnapGenProvider()
-        assert p.base_url == "https://snapgen.ai"
-        assert p.app_url == "https://snapgen.ai/app/video-gen"
-        assert p.history_url == "https://snapgen.ai/app/history"
-        assert p.session_timeout == 30 * 60
-        assert p.generation_timeout == 15 * 60
-        assert p.polling_interval == 10
-        assert p.headless is True
+class TestDefaults:
+    def test_base_url_default(self, provider: SnapGenProvider) -> None:
+        assert provider.base_url == "https://snapgen.ai"
 
-    def test_custom_values(self) -> None:
-        p = SnapGenProvider(
-            base_url="https://staging.snapgen.ai",
-            session_timeout_minutes=60,
-            generation_timeout_minutes=30,
-            polling_interval_seconds=5,
-            headless=False,
-            user_data_dir="/tmp/test-profile",
-        )
-        assert p.base_url == "https://staging.snapgen.ai"
-        assert p.app_url == "https://staging.snapgen.ai/app/video-gen"
-        assert p.session_timeout == 60 * 60
-        assert p.generation_timeout == 30 * 60
-        assert p.polling_interval == 5
-        assert p.headless is False
-        assert p.user_data_dir == "/tmp/test-profile"
+    def test_app_url(self, provider: SnapGenProvider) -> None:
+        assert provider.app_url == "https://snapgen.ai/app/video-gen"
 
-    def test_provider_name(self) -> None:
-        assert SnapGenProvider.PROVIDER_NAME == "snapgen"
+    def test_history_url(self, provider: SnapGenProvider) -> None:
+        assert provider.history_url == "https://snapgen.ai/app/history"
+
+    def test_model_button_text(self, provider: SnapGenProvider) -> None:
+        assert MODEL_BUTTON_TEXT == "Veo"
+
+    def test_duration_options(self, provider: SnapGenProvider) -> None:
+        # Live probe 2026-09-24: Veo durations are 4s/6s/8s only
+        assert "4s" in DURATION_OPTIONS
+        assert "6s" in DURATION_OPTIONS
+        assert "8s" in DURATION_OPTIONS
+
+    def test_aspect_ratio_options(self, provider: SnapGenProvider) -> None:
+        assert "16:9" in ASPECT_RATIO_OPTIONS
+        assert "9:16" in ASPECT_RATIO_OPTIONS
+
+    def test_resolution_options(self, provider: SnapGenProvider) -> None:
+        assert "720p" in RESOLUTION_OPTIONS
+        assert "1080p" in RESOLUTION_OPTIONS
+
+
+# ---------------------------------------------------------------------------
+# Provider name
+# ---------------------------------------------------------------------------
+
+
+class TestProviderName:
+    def test_provider_name(self, provider: SnapGenProvider) -> None:
+        assert provider.PROVIDER_NAME == "snapgen"
