@@ -1,0 +1,1737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Video Factory — Pipeline Demo</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface-2: #1a1a24;
+    --border: #2a2a3a;
+    --text: #e0e0e8;
+    --muted: #8888a0;
+    --accent: #6c5ce7;
+    --accent-2: #00cec9;
+    --accent-3: #fd79a8;
+    --success: #00b894;
+    --warning: #fdcb6e;
+    --danger: #e17055;
+    --glow: rgba(108, 92, 231, 0.3);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated background */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background:
+      radial-gradient(ellipse at 20% 50%, rgba(108, 92, 231, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 50%, rgba(0, 206, 201, 0.06) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 20px;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .logo-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 0 30px var(--glow);
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(108, 92, 231, 0.3); }
+    50% { box-shadow: 0 0 40px rgba(108, 92, 231, 0.5); }
+  }
+
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--text), var(--accent-2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header p {
+    color: var(--muted);
+    font-size: 14px;
+    margin-top: 6px;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 10px 20px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+
+  .btn:hover {
+    border-color: var(--accent);
+    background: var(--surface-2);
+  }
+
+  .btn.primary {
+    background: linear-gradient(135deg, var(--accent), #5a4bd1);
+    border-color: var(--accent);
+    color: white;
+    font-weight: 600;
+  }
+
+  .btn.primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px var(--glow);
+  }
+
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .btn.small {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+
+  /* Pipeline visualization */
+  .pipeline {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 30px;
+    position: relative;
+  }
+
+  .stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 100px;
+    position: relative;
+  }
+
+  .stage-node {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 2px solid var(--border);
+    background: var(--surface);
+    position: relative;
+  }
+
+  .stage.active .stage-node {
+    border-color: var(--accent);
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.2), rgba(108, 92, 231, 0.1));
+    box-shadow: 0 0 20px var(--glow);
+    animation: node-pulse 2s ease-in-out infinite;
+  }
+
+  .stage.done .stage-node {
+    border-color: var(--success);
+    background: linear-gradient(135deg, rgba(0, 184, 148, 0.2), rgba(0, 184, 148, 0.1));
+    box-shadow: 0 0 15px rgba(0, 184, 148, 0.3);
+  }
+
+  .stage.error .stage-node {
+    border-color: var(--danger);
+    background: linear-gradient(135deg, rgba(225, 112, 85, 0.2), rgba(225, 112, 85, 0.1));
+    box-shadow: 0 0 15px rgba(225, 112, 85, 0.3);
+  }
+
+  @keyframes node-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+
+  .stage-label {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: color 0.3s;
+  }
+
+  .stage.active .stage-label { color: var(--accent); }
+  .stage.done .stage-label { color: var(--success); }
+
+  /* Connector lines between stages */
+  .connector {
+    flex: 1;
+    height: 2px;
+    background: var(--border);
+    margin: 0 -2px;
+    position: relative;
+    top: -20px;
+    transition: background 0.4s;
+  }
+
+  .connector.active {
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--glow);
+  }
+
+  .connector.done {
+    background: var(--success);
+  }
+
+  /* Data packet animation */
+  .packet {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-2);
+    box-shadow: 0 0 10px var(--accent-2);
+    animation: travel 3s ease-in-out infinite;
+    z-index: 10;
+  }
+
+  @keyframes travel {
+    0% { left: 0; opacity: 1; }
+    100% { left: calc(100% + 20px); opacity: 0; }
+  }
+
+  /* Content area */
+  .content {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+    min-height: 200px;
+    transition: all 0.3s;
+  }
+
+  .content-title {
+    font-size: 13px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+    font-weight: 600;
+  }
+
+  .content-body {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* Story display */
+  .story-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .story-card h3 {
+    font-size: 13px;
+    color: var(--accent-2);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+
+  .story-card p {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* Scene grid */
+  .scene-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .scene-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    transition: all 0.3s;
+    cursor: pointer;
+  }
+
+  .scene-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  .scene-card .scene-num {
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .scene-card .scene-title {
+    font-size: 12px;
+    color: var(--text);
+    margin: 4px 0;
+    font-weight: 500;
+  }
+
+  .scene-card .scene-meta {
+    font-size: 10px;
+    color: var(--muted);
+    display: flex;
+    gap: 8px;
+  }
+
+  .scene-card .scene-tag {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+
+  .tag-horror { background: rgba(225, 112, 85, 0.2); color: var(--danger); }
+  .tag-tension { background: rgba(253, 121, 168, 0.2); color: var(--accent-3); }
+  .tag-reveal { background: rgba(108, 92, 231, 0.2); color: var(--accent); }
+  .tag-climax { background: rgba(253, 202, 81, 0.2); color: var(--warning); }
+
+  /* Prompt display */
+  .prompt-box {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    position: relative;
+  }
+
+  .prompt-box .prompt-label {
+    position: absolute;
+    top: -10px;
+    left: 14px;
+    background: var(--surface-2);
+    padding: 0 8px;
+    font-size: 10px;
+    color: var(--accent-2);
+    font-weight: 600;
+    font-family: inherit;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .prompt-box .prompt-hint {
+    display: inline-block;
+    padding: 1px 5px;
+    background: rgba(108, 92, 231, 0.15);
+    border-radius: 3px;
+    color: var(--accent);
+    font-size: 10px;
+    margin: 2px 0;
+  }
+
+  .prompt-box .prompt-neg {
+    display: inline-block;
+    padding: 1px 5px;
+    background: rgba(225, 112, 85, 0.15);
+    border-radius: 3px;
+    color: var(--danger);
+    font-size: 10px;
+    margin: 2px 0;
+  }
+
+  /* Clip generation */
+  .clip-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .clip-item {
+    width: 80px;
+    height: 60px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-size: 9px;
+    color: var(--muted);
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .clip-item.generating {
+    border-color: var(--accent);
+    animation: clip-generate 2s ease-in-out;
+  }
+
+  .clip-item.done {
+    border-color: var(--success);
+    background: rgba(0, 184, 148, 0.1);
+  }
+
+  .clip-item .clip-icon {
+    font-size: 20px;
+    opacity: 0.5;
+    transition: opacity 0.3s;
+  }
+
+  .clip-item.generating .clip-icon { opacity: 1; animation: icon-pulse 0.5s ease-in-out infinite alternate; }
+  .clip-item.done .clip-icon { opacity: 0.8; }
+
+  @keyframes clip-generate {
+    0% { transform: scale(0.8); opacity: 0.5; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  @keyframes icon-pulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.2); }
+  }
+
+  .clip-item .clip-status {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    font-size: 8px;
+  }
+
+  /* Assembly visualization */
+  .assembly-visual {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .assembly-bar {
+    display: flex;
+    gap: 2px;
+    height: 30px;
+    background: var(--surface-2);
+    border-radius: 4px;
+    padding: 2px;
+    width: 100%;
+    max-width: 600px;
+    overflow: hidden;
+  }
+
+  .assembly-clip {
+    flex: 1;
+    background: var(--surface);
+    border-radius: 2px;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    color: var(--muted);
+  }
+
+  .assembly-clip.added {
+    background: linear-gradient(135deg, var(--accent), #5a4bd1);
+    color: white;
+  }
+
+  .assembly-clip.merged {
+    background: linear-gradient(135deg, var(--success), #00a381);
+    color: white;
+  }
+
+  /* Stats */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .stat {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .stat-value.success { color: var(--success); }
+  .stat-value.warning { color: var(--warning); }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Timeline */
+  .timeline {
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--surface-2);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .timeline-item {
+    display: flex;
+    gap: 10px;
+    padding: 6px 0;
+    font-size: 12px;
+    color: var(--muted);
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .timeline-item:last-child { border-bottom: none; }
+
+  .timeline-time {
+    color: var(--accent-2);
+    font-family: 'SF Mono', monospace;
+    font-size: 11px;
+    min-width: 60px;
+  }
+
+  .timeline-msg { flex: 1; }
+
+  .timeline-msg .highlight {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .timeline-msg .success { color: var(--success); }
+  .timeline-msg .accent { color: var(--accent); }
+
+  /* Rating / quality */
+  .quality-section {
+    margin-top: 16px;
+    padding: 16px;
+    background: var(--surface-2);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .quality-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    font-size: 13px;
+  }
+
+  .quality-label {
+    color: var(--muted);
+    min-width: 120px;
+    font-size: 12px;
+  }
+
+  .quality-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--surface);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .quality-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+
+  .quality-fill.pass { background: var(--success); }
+  .quality-fill.fail { background: var(--danger); }
+
+  .quality-value {
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 30px;
+    text-align: right;
+  }
+
+  /* Final result */
+  .final-result {
+    text-align: center;
+    padding: 30px;
+    background: linear-gradient(135deg, rgba(0, 184, 148, 0.1), rgba(108, 92, 231, 0.1));
+    border: 1px solid var(--success);
+    border-radius: 12px;
+    margin-top: 20px;
+  }
+
+  .final-result .big-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+  }
+
+  .final-result h2 {
+    font-size: 20px;
+    color: var(--success);
+    margin-bottom: 8px;
+  }
+
+  .final-result p {
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .final-result .file-info {
+    margin-top: 12px;
+    font-family: 'SF Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+    background: var(--surface);
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 6px;
+  }
+
+  /* Settings panel */
+  .settings {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .settings-title {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+    font-weight: 600;
+  }
+
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+
+  .setting-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .setting-group label {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .setting-group input,
+  .setting-group select {
+    padding: 8px 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .setting-group input:focus,
+  .setting-group select:focus {
+    border-color: var(--accent);
+  }
+
+  .setting-group select option {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  /* Progress bar */
+  .overall-progress {
+    margin-bottom: 20px;
+  }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .progress-track {
+    height: 6px;
+    background: var(--surface-2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-radius: 3px;
+    transition: width 0.5s ease;
+    width: 0%;
+  }
+
+  .progress-fill.done {
+    background: linear-gradient(90deg, var(--success), #00a381);
+  }
+
+  /* Section separators */
+  .section {
+    margin-bottom: 24px;
+  }
+
+  .section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-title .badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-weight: 500;
+    border: 1px solid var(--border);
+  }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .pipeline { flex-direction: column; }
+    .connector { width: 2px; height: 20px; margin: -2px 0; top: initial; }
+    .stage { flex-direction: row; gap: 8px; }
+    .stage-node { width: 36px; height: 36px; font-size: 16px; }
+    .scene-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+    .header h1 { font-size: 22px; }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">🎬</div>
+      <h1>AI Video Factory</h1>
+    </div>
+    <p>Free-Tier AI Video Generation Pipeline · Watch the full workflow in action</p>
+  </div>
+
+  <!-- Pipeline stage visualization -->
+  <div class="pipeline" id="pipeline">
+    <div class="stage" id="stage-story">
+      <div class="stage-node">📝</div>
+      <div class="stage-label">Story</div>
+    </div>
+    <div class="connector" id="conn-1"></div>
+    <div class="stage" id="stage-scenes">
+      <div class="stage-node">🎯</div>
+      <div class="stage-label">Scenes</div>
+    </div>
+    <div class="connector" id="conn-2"></div>
+    <div class="stage" id="stage-prompts">
+      <div class="stage-node">✏️</div>
+      <div class="stage-label">Prompts</div>
+    </div>
+    <div class="connector" id="conn-3"></div>
+    <div class="stage" id="stage-clips">
+      <div class="stage-node">🎥</div>
+      <div class="stage-label">Clips</div>
+    </div>
+    <div class="connector" id="conn-4"></div>
+    <div class="stage" id="stage-qa">
+      <div class="stage-node">✓</div>
+      <div class="stage-label">QA</div>
+    </div>
+    <div class="connector" id="conn-5"></div>
+    <div class="stage" id="stage-asm">
+      <div class="stage-node">🔗</div>
+      <div class="stage-label">Assembly</div>
+    </div>
+  </div>
+
+  <!-- Overall progress -->
+  <div class="overall-progress">
+    <div class="progress-header">
+      <span id="progress-label">Idle — press "Run Pipeline" to start</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="settings">
+    <div class="settings-title">🎛️ Pipeline Settings</div>
+    <div class="settings-grid">
+      <div class="setting-group">
+        <label>Topic</label>
+        <input type="text" id="setting-topic" value="Haunted Doll" placeholder="Video topic...">
+      </div>
+      <div class="setting-group">
+        <label>Niche</label>
+        <select id="setting-niche">
+          <option value="horror" selected>Horror</option>
+          <option value="sci-fi">Sci-Fi</option>
+          <option value="fantasy">Fantasy</option>
+          <option value="thriller">Thriller</option>
+        </select>
+      </div>
+      <div class="setting-group">
+        <label>Duration (seconds)</label>
+        <select id="setting-duration">
+          <option value="60">60s (1 min)</option>
+          <option value="300" selected>300s (5 min)</option>
+          <option value="600">600s (10 min)</option>
+          <option value="900">900s (15 min)</option>
+        </select>
+      </div>
+      <div class="setting-group">
+        <label>Clip Length</label>
+        <select id="setting-clip">
+          <option value="4">4 seconds</option>
+          <option value="8" selected>8 seconds</option>
+          <option value="10">10 seconds</option>
+        </select>
+      </div>
+      <div class="setting-group">
+        <label>Provider</label>
+        <select id="setting-provider">
+          <option value="mock" selected>Mock (test clips)</option>
+          <option value="snapgen">SnapGen AI (real)</option>
+        </select>
+      </div>
+      <div class="setting-group">
+        <label>Speed</label>
+        <select id="setting-speed">
+          <option value="1">Normal</option>
+          <option value="2" selected>2x Speed</option>
+          <option value="3">3x Speed</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="btn primary" id="btn-run" onclick="runPipeline()">▶ Run Pipeline</button>
+    <button class="btn" id="btn-step" onclick="stepForward()" disabled>Step Forward</button>
+    <button class="btn" onclick="resetPipeline()">↺ Reset</button>
+    <button class="btn small" onclick="toggleAutoPlay()" id="btn-auto">▶ Auto-Play</button>
+  </div>
+
+  <!-- Content area -->
+  <div class="content" id="content">
+    <div class="content-title">Pipeline Output</div>
+    <div class="content-body" id="content-body">
+      <p style="color: var(--muted); text-align: center; padding: 40px 0;">
+        Configure your settings above and press <strong style="color: var(--accent);">Run Pipeline</strong> to watch the AI Video Factory generate a complete video from scratch.
+        <br><br>
+        Each stage will animate in sequence — story generation → scene planning → prompt compilation → clip generation → quality assurance → final assembly.
+      </p>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats" id="stats" style="display: none;">
+    <div class="stat">
+      <div class="stat-value" id="stat-scenes">0</div>
+      <div class="stat-label">Scenes Planned</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="stat-prompts">0</div>
+      <div class="stat-label">Prompts Compiled</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="stat-clips">0</div>
+      <div class="stat-label">Clips Generated</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value success" id="stat-qa">0</div>
+      <div class="stat-label">QA Passed</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="stat-duration">0s</div>
+      <div class="stat-label">Final Duration</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="stat-size">0 KB</div>
+      <div class="stat-label">File Size</div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="timeline" id="timeline" style="display: none;"></div>
+
+  <!-- Final result (hidden until done) -->
+  <div class="final-result" id="final-result" style="display: none;">
+    <div class="big-icon">🎬</div>
+    <h2>Pipeline Complete!</h2>
+    <p id="final-msg">Your AI-generated video is ready.</p>
+    <div class="file-info" id="final-file-info"></div>
+    <br><br>
+    <button class="btn primary" onclick="resetPipeline()">Generate Another</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// AI Video Factory — Pipeline Demo
+// ============================================================
+
+const state = {
+  currentStage: -1, // -1 = idle, 0-5 = stages
+  autoPlay: false,
+  speed: 1,
+  running: false,
+  finished: false,
+};
+
+const settings = {
+  topic: 'Haunted Doll',
+  niche: 'horror',
+  duration: 300,
+  clipSeconds: 8,
+  provider: 'mock',
+};
+
+// Story content per niche
+const STORIES = {
+  horror: {
+    title: 'The Haunted Doll',
+    tagline: 'A vintage doll arrives in a quiet household — and the shadows begin to move.',
+    acts: [
+      { title: 'Act I: Arrival', desc: 'A box arrives. Inside: a porcelain doll with glass eyes. The family laughs it off. But at 3 AM, the doll is facing the wall.' },
+      { title: 'Act II: Escalation', desc: 'Objects shift. Footsteps echo when no one is home. The doll appears in different rooms. The youngest child refuses to sleep alone.' },
+      { title: 'Act III: Revelation', desc: 'The doll belonged to a girl who vanished in 1987. Her final words: "It watches me when I sleep." The family must break the cycle — or become part of it.' }
+    ],
+    sceneTypes: ['exposition', 'rising_tension', 'jump_scare', 'revelation', 'climax']
+  },
+  'sci-fi': {
+    title: 'Signal from Kepler-442b',
+    tagline: 'A deep-space listening post picks up a pattern that should not exist.',
+    acts: [
+      { title: 'Act I: The Signal', desc: 'Station Kepler-7 detects a repeating transmission. Not random noise — structured, deliberate. The crew dismisses it as interference.' },
+      { title: 'Act II: Decoding', desc: 'The pattern resolves into an image: Earth, as seen from 1,200 light-years away. But Earth has no cities yet. Someone is looking back at us from the future.' },
+      { title: 'Act III: Contact', desc: 'The transmission ends with a single command: "Do not answer." The crew must decide — silence means safety, but answering could be humanity\'s first conversation with its own descendants.' }
+    ],
+    sceneTypes: ['discovery', 'analysis', 'anomaly', 'transmission', 'Decision']
+  },
+  fantasy: {
+    title: 'The Last Lamp',
+    tagline: 'In a world where magic is dying, one lamp still burns.',
+    acts: [
+      { title: 'Act I: The Fading', desc: 'The great lanterns of the world are going dark, one by one. A young lamp-lighter discovers the last unextinguished lamp in a forgotten temple.' },
+      { title: 'Act II: The Quest', desc: 'The lamp is not just a light — it\'s a key. The lamp-lighter must journey to the Heart of the World to reignite the first flame before the last light goes out.' },
+      { title: 'Act III: The Heart', desc: 'The Heart is not a place — it\'s a choice. To reignite magic, someone must become the new wick. The lamp-lighter faces the ultimate sacrifice.' }
+    ],
+    sceneTypes: ['discovery', 'journey', 'revelation', 'sacrifice', 'rebirth']
+  },
+  thriller: {
+    title: 'The Midnight Call',
+    tagline: 'Every night at midnight, the same phone rings. No one answers. Until tonight.',
+    acts: [
+      { title: 'Act I: The Ring', desc: 'A disconnected phone in an abandoned apartment starts ringing at midnight. The police investigate. No signal. No line. But the phone keeps ringing.' },
+      { title: 'Act II: The Voice', desc: 'On the seventh night, someone answers. A voice says: "I\'m in the room with you." The apartment is empty. But the temperature drops.' },
+      { title: 'Act III: The Truth', desc: 'The phone belongs to a woman who died in that apartment 20 years ago. She\'s been calling for someone to help her cross over. Tonight, someone finally picked up.' }
+    ],
+    sceneTypes: ['mystery', 'tension', 'reveal', 'confrontation', 'resolution']
+  }
+};
+
+// Generate scenes based on story
+function generateScenes(story) {
+  const scenes = [];
+  const types = story.sceneTypes;
+  const numScenes = Math.ceil(settings.duration / settings.clipSeconds);
+  
+  let sceneNum = 1;
+  for (let a = 0; a < 3; a++) {
+    const actScenes = Math.ceil(numScenes / 3);
+    for (let s = 0; s < actScenes && sceneNum <= numScenes; s++) {
+      const typeIdx = (a * actScenes + s) % types.length;
+      scenes.push({
+        num: sceneNum,
+        act: a + 1,
+        type: types[typeIdx],
+        title: `${typeIdx === 0 ? 'Opening' : typeIdx === types.length-1 ? 'Climax' : 'Scene'} ${sceneNum}`,
+        duration: settings.clipSeconds,
+        narration: `Scene ${sceneNum}: ${story.tagline.substring(0, 40)}...`
+      });
+      sceneNum++;
+    }
+  }
+  return scenes.slice(0, numScenes);
+}
+
+// Generate prompt for a scene
+function generatePrompt(scene, story) {
+  const niche = settings.niche;
+  const tags = {
+    horror: {
+      prefix: 'Horrible horror film still, ',
+      mood: 'oppressive, claustrophobic, dark, dread-filled',
+      style: 'cinematic lighting, desaturated colors, high contrast, grain',
+      neg: 'bright, cheerful, cartoon, anime, low quality, blurry, deformed'
+    },
+    'sci-fi': {
+      prefix: 'Sci-fi film still, ',
+      mood: 'atmospheric, isolated, awe-inspiring, cold',
+      style: 'cinematic lighting, teal and orange, volumetric fog, film grain',
+      neg: 'bright, cheerful, cartoon, anime, low quality, blurry, deformed'
+    },
+    fantasy: {
+      prefix: 'Fantasy film still, ',
+      mood: 'enchanting, mysterious, warm, ancient',
+      style: 'cinematic lighting, golden hour, ethereal glow, detailed textures',
+      neg: 'modern, technology, cartoon, anime, low quality, blurry, deformed'
+    },
+    thriller: {
+      prefix: 'Thriller film still, ',
+      mood: 'suspenseful, tense, shadowy, psychological',
+      style: 'cinematic lighting, chiaroscuro, cool tones, sharp focus',
+      neg: 'bright, cheerful, cartoon, anime, low quality, blurry, deformed'
+    }
+  };
+  
+  const t = tags[niche] || tags.horror;
+  const prompts = [
+    `${t.prefix}${scene.title.toLowerCase()}. ${story.tagline}. ${t.mood}. ${t.style}. 8 seconds, 16:9 aspect ratio.`,
+  ];
+  
+  return prompts[0];
+}
+
+// Current data
+let currentStory = null;
+let currentScenes = [];
+let currentPrompts = [];
+let currentClips = [];
+
+// DOM refs
+const $ = id => document.getElementById(id);
+const contentBody = $('content-body');
+const timeline = $('timeline');
+const stats = $('stats');
+const finalResult = $('final-result');
+
+// Logging
+function log(msg, cls = '') {
+  const t = new Date();
+  const time = t.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const item = document.createElement('div');
+  item.className = 'timeline-item';
+  item.innerHTML = `<span class="timeline-time">${time}</span><span class="timeline-msg">${msg}</span>`;
+  timeline.appendChild(item);
+  timeline.scrollTop = timeline.scrollHeight;
+}
+
+// Set stage state
+function setStage(idx, status) {
+  const stages = ['stage-story', 'stage-scenes', 'stage-prompts', 'stage-clips', 'stage-qa', 'stage-asm'];
+  const conns = ['conn-1', 'conn-2', 'conn-3', 'conn-4', 'conn-5'];
+  
+  stages.forEach((s, i) => {
+    const el = $(s);
+    el.classList.remove('active', 'done', 'error');
+    if (i < idx) el.classList.add('done');
+    else if (i === idx) el.classList.add(status);
+  });
+  
+  conns.forEach((c, i) => {
+    const el = $(c);
+    el.classList.remove('active', 'done');
+    if (i < idx) el.classList.add('done');
+    else if (i === idx) el.classList.add('active');
+  });
+}
+
+// Update progress
+function updateProgress(pct, label) {
+  $('progress-fill').style.width = pct + '%';
+  $('progress-fill').classList.toggle('done', pct >= 100);
+  $('progress-pct').textContent = pct + '%';
+  $('progress-label').textContent = label || 'Running...';
+}
+
+// Reset
+function resetPipeline() {
+  state.currentStage = -1;
+  state.running = false;
+  state.finished = false;
+  
+  // Clear stages
+  ['stage-story', 'stage-scenes', 'stage-prompts', 'stage-clips', 'stage-qa', 'stage-asm'].forEach(id => {
+    const el = $(id);
+    el.classList.remove('active', 'done', 'error');
+  });
+  ['conn-1', 'conn-2', 'conn-3', 'conn-4', 'conn-5'].forEach(id => {
+    $(id).classList.remove('active', 'done');
+  });
+  
+  updateProgress(0, 'Idle — press "Run Pipeline" to start');
+  contentBody.innerHTML = `<p style="color: var(--muted); text-align: center; padding: 40px 0;">Configure your settings above and press <strong style="color: var(--accent);">Run Pipeline</strong> to watch the AI Video Factory generate a complete video from scratch.<br><br>Each stage will animate in sequence.</p>`;
+  
+  stats.style.display = 'none';
+  timeline.style.display = 'none';
+  finalResult.style.display = 'none';
+  $('btn-step').disabled = true;
+  $('btn-run').disabled = false;
+  
+  timeline.innerHTML = '';
+}
+
+// Step forward (manual mode)
+function stepForward() {
+  if (state.finished) { resetPipeline(); return; }
+  if (state.currentStage >= 5) return;
+  state.currentStage++;
+  executeStage(state.currentStage);
+}
+
+// Main pipeline runner
+async function runPipeline() {
+  if (state.running) return;
+  
+  resetPipeline();
+  state.running = true;
+  $('btn-run').disabled = true;
+  $('btn-run').textContent = '⏳ Running...';
+  
+  // Read settings
+  settings.topic = $('setting-topic').value || 'Haunted Doll';
+  settings.niche = $('setting-niche').value;
+  settings.duration = parseInt($('setting-duration').value);
+  settings.clipSeconds = parseInt($('setting-clip').value);
+  settings.provider = $('setting-provider').value;
+  state.speed = parseInt($('setting-speed').value);
+  
+  // Load story
+  currentStory = STORIES[settings.niche] || STORIES.horror;
+  currentStory.title = settings.topic;
+  
+  // Show stats
+  stats.style.display = 'grid';
+  timeline.style.display = 'block';
+  
+  log(`<span class="highlight">Pipeline started</span> — topic: "${settings.topic}", niche: ${settings.niche}, duration: ${settings.duration}s, provider: ${settings.provider}`, '');
+  
+  for (let i = 0; i < 6; i++) {
+    if (state.running) {
+      state.currentStage = i;
+      await executeStage(i);
+    }
+  }
+  
+  state.finished = true;
+  state.running = false;
+  $('btn-run').disabled = false;
+  $('btn-run').textContent = '▶ Run Pipeline';
+  $('btn-step').disabled = true;
+  
+  if (state.autoPlay) {
+    state.autoPlay = false;
+    $('btn-auto').textContent = '▶ Auto-Play';
+  }
+}
+
+// Execute a single stage
+function executeStage(stageIdx) {
+  return new Promise((resolve) => {
+    const delay = 1500 / state.speed; // base delay adjusted by speed
+    
+    switch (stageIdx) {
+      case 0: executeStoryStage(delay, resolve); break;
+      case 1: executeScenesStage(delay, resolve); break;
+      case 2: executePromptsStage(delay, resolve); break;
+      case 3: executeClipsStage(delay, resolve); break;
+      case 4: executeQaStage(delay, resolve); break;
+      case 5: executeAssemblyStage(delay, resolve); break;
+    }
+  });
+}
+
+// Stage 0: Story Generation
+function executeStoryStage(delay, resolve) {
+  setStage(0, 'active');
+  updateProgress(8, 'Generating story...');
+  
+  log('<span class="accent">📝 Story Generation</span> — invoking story engine...', '');
+  
+  setTimeout(() => {
+    // Show story
+    const story = currentStory;
+    let html = `<div class="section">
+      <div class="section-title">📝 Generated Story <span class="badge">Hermes Engine · Free Tier</span></div>
+      <div class="story-card">
+        <h3>${story.title}</h3>
+        <p><em>${story.tagline}</em></p>
+      </div>
+      <div class="story-card" style="margin-top:8px;">
+        <h3>Story Structure</h3>
+        <p style="font-size:12px; color: var(--muted);">3 acts · ${Math.ceil(settings.duration / settings.clipSeconds)} scenes · ${settings.clipSeconds}s clips</p>
+      </div>
+    </div>`;
+    
+    story.acts.forEach((act, i) => {
+      html += `<div class="story-card" style="margin-top:8px;">
+        <h3>${act.title}</h3>
+        <p>${act.desc}</p>
+      </div>`;
+    });
+    
+    contentBody.innerHTML = html;
+    
+    setStage(0, 'done');
+    updateProgress(16, 'Story generated ✓');
+    log(`<span class="success">✓ Story generated:</span> "${story.title}" — 3 acts, ${Math.ceil(settings.duration / settings.clipSeconds)} scenes planned`, '');
+    
+    setTimeout(resolve, delay * 0.3);
+  }, delay * 0.7);
+}
+
+// Stage 1: Scene Planning
+function executeScenesStage(delay, resolve) {
+  setStage(1, 'active');
+  updateProgress(24, 'Planning scenes...');
+  
+  log('<span class="accent">🎯 Scene Planning</span> — deriving planar scenes from story...', '');
+  
+  setTimeout(() => {
+    currentScenes = generateScenes(currentStory);
+    const story = currentStory;
+    
+    let html = `<div class="section">
+      <div class="section-title">🎯 Planned Scenes <span class="badge">ScenePlanner · ${currentScenes.length} scenes</span></div>
+      <p style="color: var(--muted); font-size: 13px; margin-bottom: 10px;">Narration-driven scene count: <strong>${currentScenes.length} scenes</strong> from ${settings.duration}s target at ${settings.clipSeconds}s per clip.</p>
+    </div>`;
+    
+    // Scene grid
+    html += `<div class="scene-grid">`;
+    currentScenes.forEach(s => {
+      const typeTag = s.type.toLowerCase().replace(/\s/g, '-');
+      html += `<div class="scene-card">
+        <div class="scene-num">SCENE ${s.num}</div>
+        <div class="scene-title">${s.title}</div>
+        <div class="scene-tag tag-${typeTag}">${s.type}</div>
+        <div class="scene-meta">
+          <span>Act ${s.act}</span>
+          <span>${s.duration}s</span>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+    
+    // Continuity DNA
+    html += `<div style="margin-top: 14px; padding: 10px; background: rgba(108, 92, 231, 0.08); border-radius: 6px; border: 1px solid rgba(108, 92, 231, 0.2);">
+      <div style="font-size: 11px; color: var(--accent); font-weight: 600; margin-bottom: 4px;">🧬 Continuity DNA (injected into every prompt)</div>
+      <div style="font-size: 11px; color: var(--muted);">
+        Characters: <strong style="color: var(--text);">${story.tagline.split(' ').slice(0, 3).join(' ')}</strong><br>
+        Medium: <strong style="color: var(--text);">live-action cinematic</strong><br>
+        Lighting: <strong style="color: var(--text);">${story.niche === 'horror' ? 'low-key, high contrast' : story.niche === 'sci-fi' ? 'teal and orange cinematic' : story.niche === 'fantasy' ? 'golden hour ethereal' : 'chiaroscuro dramatic'}</strong><br>
+        Color palette: <strong style="color: var(--text);">${story.niche === 'horror' ? 'deep red, dark blue, black' : story.niche === 'sci-fi' ? 'teal, orange, steel gray' : story.niche === 'fantasy' ? 'amber, gold, deep green' : 'cool blue, steel, shadow'}</strong>
+      </div>
+    </div>`;
+    
+    contentBody.innerHTML = html;
+    
+    setStage(1, 'done');
+    updateProgress(40, 'Scenes planned ✓');
+    log(`<span class="success">✓ Scenes planned:</span> ${currentScenes.length} scenes across 3 acts`, '');
+    
+    setTimeout(resolve, delay * 0.3);
+  }, delay * 0.6);
+}
+
+// Stage 2: Prompt Compilation
+function executePromptsStage(delay, resolve) {
+  setStage(2, 'active');
+  updateProgress(50, 'Compiling prompts...');
+  
+  log('<span class="accent">✏️ Prompt Compilation</span> — compiling provider-ready prompts...', '');
+  
+  setTimeout(() => {
+    currentPrompts = currentScenes.map(s => ({
+      scene: s,
+      prompt: generatePrompt(s, currentStory)
+    }));
+    
+    let html = `<div class="section">
+      <div class="section-title">✏️ Compiled Prompts <span class="badge">PromptCompiler · ${currentPrompts.length} prompts</span></div>
+      <p style="color: var(--muted); font-size: 13px; margin-bottom: 10px;">Provider: <strong style="color: var(--text);">${settings.provider === 'mock' ? 'MockVideoProvider (test)' : 'SnapGen Veo 3.1 Fast'}</strong> · Schema v1 · ${settings.clipSeconds}s clips</p>
+    </div>`;
+    
+    // Show a few prompts
+    const showCount = Math.min(3, currentPrompts.length);
+    html += `<div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px;">`;
+    for (let i = 0; i < showCount; i++) {
+      const cp = currentPrompts[i];
+      html += `<div class="prompt-box">
+        <div class="prompt-label">Scene ${cp.scene.num} · ${cp.scene.type}</div>
+        ${cp.prompt}
+      </div>`;
+    }
+    if (currentPrompts.length > 3) {
+      html += `<div style="text-align: center; color: var(--muted); font-size: 12px; padding: 8px;">
+        ... and ${currentPrompts.length - 3} more prompts
+      </div>`;
+    }
+    html += `</div>`;
+    
+    // Continuity injection note
+    const firstPrompt = currentPrompts[0].prompt;
+    html += `<div style="margin-top: 10px; padding: 10px; background: rgba(0, 206, 201, 0.08); border-radius: 6px; border: 1px solid rgba(0, 206, 201, 0.2);">
+      <div style="font-size: 11px; color: var(--accent-2); font-weight: 600; margin-bottom: 4px;">🔗 Continuity Injection</div>
+      <div style="font-size: 11px; color: var(--muted);">
+        Every prompt carries the same <strong style="color: var(--text);">character tags</strong>, <strong style="color: var(--text);">medium tags</strong>, <strong style="color: var(--text);">lighting tags</strong>, and <strong style="color: var(--text);">color palette</strong> — so all clips look like they belong in the same film.
+      </div>
+    </div>`;
+    
+    contentBody.innerHTML = html;
+    
+    setStage(2, 'done');
+    updateProgress(65, 'Prompts compiled ✓');
+    log(`<span class="success">✓ Prompts compiled:</span> ${currentPrompts.length} prompts ready for ${settings.provider === 'mock' ? 'MockVideoProvider' : 'SnapGen Veo 3.1 Fast'}`, '');
+    
+    setTimeout(resolve, delay * 0.3);
+  }, delay * 0.5);
+}
+
+// Stage 3: Clip Generation
+function executeClipsStage(delay, resolve) {
+  setStage(3, 'active');
+  updateProgress(70, `Generating clips (${settings.provider})...`);
+  
+  const providerName = settings.provider === 'mock' ? 'MockVideoProvider' : 'SnapGen AI';
+  log(`<span class="accent">🎥 Clip Generation</span> — submitting ${currentPrompts.length} prompts to ${providerName}...`, '');
+  
+  if (settings.provider === 'mock') {
+    log('<span style="color: var(--muted);">Using MockVideoProvider — generating real ffmpeg test-pattern MP4s (H.264, 720×1280, AAC)</span>', '');
+  } else {
+    log('<span style="color: var(--muted);">Using SnapGen AI — Veo 3.1 Fast model (free tier, 0 credits), 8s clips at 720p</span>', '');
+  }
+  
+  setTimeout(() => {
+    // Build clip grid
+    currentClips = currentPrompts.map((cp, i) => ({
+      index: i,
+      scene: cp.scene,
+      status: 'pending',
+      resultId: '',
+      codec: 'H.264',
+      resolution: '720×1280',
+      duration: settings.clipSeconds,
+    }));
+    
+    let html = `<div class="section">
+      <div class="section-title">🎥 Clip Generation <span class="badge">${currentClips.length} clips</span></div>
+      <p style="color: var(--muted); font-size: 13px; margin-bottom: 10px;">Provider: <strong style="color: var(--text);">${providerName}</strong> · Max concurrent: 1 (serial per account)</p>
+    </div>`;
+    
+    html += `<div class="clip-grid" id="clip-grid">`;
+    currentClips.forEach((clip, i) => {
+      html += `<div class="clip-item" id="clip-${i}">
+        <div class="clip-icon">🎬</div>
+        <div>Scene ${clip.scene.num}</div>
+        <div class="clip-status">waiting</div>
+      </div>`;
+    });
+    html += `</div>`;
+    
+    // Generation status
+    html += `<div style="margin-top: 14px;">
+      <div style="font-size: 12px; color: var(--muted); margin-bottom: 6px;">Generation progress:</div>
+      <div style="display: flex; gap: 4px; flex-wrap: wrap;" id="gen-status"></div>
+    </div>`;
+    
+    contentBody.innerHTML = html;
+    
+    setStage(3, 'active');
+    updateProgress(72, 'Generating clips...');
+    
+    // Animate clip generation one by one
+    let generated = 0;
+    const genStatus = $('gen-status');
+    
+    function generateNextClip() {
+      if (generated >= currentClips.length) {
+        // All done
+        log(`<span class="success">✓ All clips generated:</span> ${currentClips.length} clips via ${providerName}`, '');
+        setStage(3, 'done');
+        updateProgress(88, 'Clips generated ✓');
+        setTimeout(resolve, delay * 0.2);
+        return;
+      }
+      
+      const clip = currentClips[generated];
+      const el = $(`clip-${clip.index}`);
+      const statusEl = el.querySelector('.clip-status');
+      
+      // Animate
+      el.classList.add('generating');
+      statusEl.textContent = 'gen...';
+      log(`<span style="color: var(--accent-2);">●</span> Scene ${clip.scene.num}/${currentClips.length}: submitting prompt...`, '');
+      
+      setTimeout(() => {
+        // Success
+        el.classList.remove('generating');
+        el.classList.add('done');
+        clip.status = 'done';
+        clip.resultId = Math.random().toString(36).substring(2, 10);
+        statusEl.textContent = '✓';
+        statusEl.style.color = 'var(--success)';
+        
+        // Add to gen status
+        const dot = document.createElement('div');
+        dot.style.cssText = 'width: 12px; height: 12px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success);';
+        genStatus.appendChild(dot);
+        
+        generated++;
+        updateProgress(72 + (generated / currentClips.length) * 16, `Generating clips... ${generated}/${currentClips.length}`);
+        
+        setTimeout(generateNextClip, delay * 0.4 / state.speed);
+      }, delay * 0.5 / state.speed);
+    }
+    
+    // Start generating after a brief pause
+    setTimeout(generateNextClip, delay * 0.3);
+  }, delay * 0.3);
+}
+
+// Stage 4: QA
+function executeQaStage(delay, resolve) {
+  setStage(4, 'active');
+  updateProgress(90, 'Running quality assurance...');
+  
+  log('<span class="accent">✓ Quality Assurance</span> — validating all clips...', '');
+  
+  setTimeout(() => {
+    // QA checks
+    const qaResults = currentClips.map(clip => ({
+      clip,
+      checks: {
+        fileExists: true,
+        videoCodec: clip.codec === 'H.264',
+        resolution: clip.resolution === '720×1280',
+        durationOk: clip.duration >= 3 && clip.duration <= 10,
+        fileSize: Math.random() > 0.05, // 95% pass rate for realism
+      }
+    }));
+    
+    // Compute per-clip pass/fail
+    qaResults.forEach(r => {
+      r.passed = Object.values(r.checks).every(v => v);
+    });
+    
+    const passed = qaResults.filter(r => r.passed).length;
+    const failed = qaResults.length - passed;
+    
+    let html = `<div class="section">
+      <div class="section-title">✓ Quality Assurance <span class="badge">VideoQA + AssemblyGate</span></div>
+      <p style="color: var(--muted); font-size: 13px; margin-bottom: 10px;">${passed}/${qaResults.length} clips passed all checks</p>
+    </div>`;
+    
+    // Quality bars
+    html += `<div class="quality-section">`;
+    
+    // Overall
+    html += `<div class="quality-row">
+      <div class="quality-label">Overall pass rate</div>
+      <div class="quality-bar"><div class="quality-fill ${passed === qaResults.length ? 'pass' : 'fail'}" style="width: ${(passed/qaResults.length)*100}%"></div></div>
+      <div class="quality-value" style="color: ${passed === qaResults.length ? 'var(--success)' : 'var(--danger)'}">${passed}/${qaResults.length}</div>
+    </div>`;
+    
+    // Individual checks
+    const checks = [
+      { name: 'File exists', key: 'fileExists' },
+      { name: 'Video codec (H.264)', key: 'videoCodec' },
+      { name: 'Resolution (720×1280)', key: 'resolution' },
+      { name: 'Duration (3-10s)', key: 'durationOk' },
+      { name: 'File size threshold', key: 'fileSize' },
+    ];
+    
+    checks.forEach(c => {
+      const passCount = qaResults.filter(r => r.checks[c.key]).length;
+      const pct = (passCount / qaResults.length) * 100;
+      html += `<div class="quality-row">
+        <div class="quality-label">${c.name}</div>
+        <div class="quality-bar"><div class="quality-fill ${pct === 100 ? 'pass' : 'fail'}" style="width: ${pct}%"></div></div>
+        <div class="quality-value">${passCount}/${qaResults.length}</div>
+      </div>`;
+    });
+    
+    html += `</div>`;
+    
+    // Per-clip detail
+    html += `<div style="margin-top: 14px;">
+      <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">Per-clip results:</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px;">`;
+    
+    qaResults.forEach((r, i) => {
+      const color = r.passed ? 'var(--success)' : 'var(--danger)';
+      const icon = r.passed ? '✓' : '✗';
+      html += `<div style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: ${r.passed ? 'rgba(0,184,148,0.1)' : 'rgba(225,112,85,0.1)'}; border-radius: 4px; border: 1px solid ${color}; font-size: 11px;">
+        <span style="color: ${color}; font-weight: 700;">${icon}</span>
+        <span style="color: ${r.passed ? 'var(--text)' : 'var(--danger)'}">Scene ${r.clip.scene.num}</span>
+      </div>`;
+    });
+    
+    html += `</div></div>`;
+    
+    // AssemblyGate status
+    const gatePass = passed / qaResults.length >= 0.8;
+    html += `<div style="margin-top: 14px; padding: 12px; background: ${gatePass ? 'rgba(0,184,148,0.1)' : 'rgba(225,112,85,0.1)'}; border-radius: 6px; border: 1px solid ${gatePass ? 'var(--success)' : 'var(--danger)'};">
+      <div style="font-size: 11px; font-weight: 600; color: ${gatePass ? 'var(--success)' : 'var(--danger)'};">
+        🚧 AssemblyGate: ${gatePass ? 'PASS' : 'FAIL'} — ${passed}/${qaResults.length} clips pass (${Math.round(passed/qaResults.length*100)}%) — threshold: 80%
+      </div>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">
+        ${gatePass ? 'All clips cleared for assembly.' : failed > 0 ? `<strong style="color: var(--danger);">${failed} clip(s) failed — would block assembly in production.</strong>` : ''}
+      </div>
+    </div>`;
+    
+    contentBody.innerHTML = html;
+    
+    setStage(4, 'done');
+    updateProgress(95, 'QA complete ✓');
+    log(`<span class="success">✓ QA complete:</span> ${passed}/${qaResults.length} clips passed all checks`, '');
+    
+    // Update stats
+    $('stat-qa').textContent = passed;
+    
+    setTimeout(resolve, delay * 0.2);
+  }, delay * 0.2);
+}
+
+// Stage 5: Assembly
+function executeAssemblyStage(delay, resolve) {
+  setStage(5, 'active');
+  updateProgress(96, 'Assembling final video...');
+  
+  log('<span class="accent">🔗 Assembly</span> — concatenating clips via FFmpeg...', '');
+  
+  setTimeout(() => {
+    // Assembly visualization
+    let html = `<div class="section">
+      <div class="section-title">🔗 FFmpeg Assembly <span class="badge">VideoAssembler · concat + crossfade</span></div>
+      <p style="color: var(--muted); font-size: 13px; margin-bottom: 10px;">Method: concat demuxer · Resolution: 720×1280 · Codec: H.264 + AAC</p>
+    </div>`;
+    
+    // Assembly bar
+    html += `<div class="assembly-visual">
+      <div style="font-size: 11px; color: var(--muted); margin-bottom: 4px;">Clips being merged:</div>
+      <div class="assembly-bar" id="assembly-bar">`;
+    
+    currentClips.forEach((clip, i) => {
+      html += `<div class="assembly-clip" id="asm-${i}">-${i+1}-</div>`;
+    });
+    html += `</div>`;
+    
+    html += `<div style="margin-top: 8px; font-size: 11px; color: var(--muted);" id="asm-status">0/${currentClips.length} clips merged</div>
+    </div>`;
+    
+    // FFmpeg commands shown
+    html += `<div style="margin-top: 14px; padding: 12px; background: var(--surface-2); border-radius: 6px; border: 1px solid var(--border); font-family: 'SF Mono', monospace; font-size: 11px; color: var(--muted); line-height: 1.6;">
+      <div style="color: var(--accent-2); margin-bottom: 6px;"># FFmpeg concat demuxer</div>
+      <div style="color: var(--text);">file &#39;scene_01.mp4&#39;</div>
+      <div style="color: var(--text);">file &#39;scene_02.mp4&#39;</div>
+      <div style="color: var(--text);">file &#39;scene_03.mp4&#39;</div>
+      <div style="color: var(--muted);">... (${currentClips.length} clips total)</div>
+      <div style="color: var(--muted); margin-top: 6px;"># Output: H.264 + AAC, 720×1280, 24fps</div>
+    </div>`;
+    
+    contentBody.innerHTML = html;
+    
+    setStage(5, 'active');
+    
+    // Animate assembly
+    let merged = 0;
+    const asmBar = $('assembly-bar');
+    const asmStatus = $('asm-status');
+    
+    function mergeNext() {
+      if (merged >= currentClips.length) {
+        // All merged — show final
+        setTimeout(() => {
+          // Mark all as merged
+          currentClips.forEach((clip, i) => {
+            const el = $(`asm-${i}`);
+            el.classList.remove('added');
+            el.classList.add('merged');
+            el.textContent = '✓';
+          });
+          
+          asmStatus.textContent = `${currentClips.length}/${currentClips.length} clips merged`;
+          
+          // Calculate final stats
+          const totalDuration = currentClips.reduce((sum, c) => sum + c.duration, 0);
+          const fileSize = Math.round(totalDuration * 24 * 1024 * 0.85); // rough estimate
+          
+          setStage(5, 'done');
+          updateProgress(100, 'Complete! ✓');
+          
+          log(`<span class="success">✓ Assembly complete:</span> Final video ready — ${totalDuration}s, ${fileSize/1024} KB`, '');
+          
+          // Show stats
+          $('stat-scenes').textContent = currentScenes.length;
+          $('stat-prompts').textContent = currentPrompts.length;
+          $('stat-clips').textContent = currentClips.length;
+          $('stat-duration').textContent = totalDuration + 's';
+          $('stat-size').textContent = (fileSize/1024).toFixed(0) + ' KB';
+          
+          // Show final result
+          const providerNote = settings.provider === 'mock' 
+            ? 'Generated with MockVideoProvider (test clips)' 
+            : 'Generated with SnapGen Veo 3.1 Fast (free tier)';
+          
+          $('final-msg').textContent = `${currentStory.title} — ${providerNote}`;
+          $('final-file-info').textContent = 
+            `🎬 final_video.mp4\n` +
+            `   Duration: ${totalDuration}s\n` +
+            `   Resolution: 720×1280\n` +
+            `   Codec: H.264 + AAC\n` +
+            `   Size: ${(fileSize/1024).toFixed(0)} KB\n` +
+            `   Scenes: ${currentClips.length} clips assembled`;
+          
+          finalResult.style.display = 'block';
+          $('btn-step').disabled = true;
+          
+          setTimeout(resolve, delay * 0.2);
+        }, 400);
+        return;
+      }
+      
+      const el = $(`asm-${merged}`);
+      el.classList.add('added');
+      el.textContent = `+${merged+1}`;
+      merged++;
+      asmStatus.textContent = `${merged}/${currentClips.length} clips merged`;
+      
+      setTimeout(mergeNext, delay * 0.3 / state.speed);
+    }
+    
+    setTimeout(mergeNext, delay * 0.2);
+  }, delay * 0.1);
+}
+
+// Auto-play toggle
+function toggleAutoPlay() {
+  state.autoPlay = !state.autoPlay;
+  $('btn-auto').textContent = state.autoPlay ? '⏸ Pause' : '▶ Auto-Play';
+  $('btn-auto').style.borderColor = state.autoPlay ? 'var(--accent-2)' : '';
+  
+  if (state.autoPlay && !state.running && state.currentStage < 0) {
+    runPipeline();
+  }
+}
+
+// Keyboard shortcut
+document.addEventListener('keydown', (e) => {
+  if (e.key === ' ' || e.key === 'Enter') {
+    if (!state.running && !state.finished) {
+      e.preventDefault();
+      runPipeline();
+    } else if (state.finished && e.key === ' ') {
+      resetPipeline();
+    }
+  }
+  if (e.key === 'r' && !e.ctrlKey && !e.metaKey) {
+    resetPipeline();
+  }
+});
+
+// Initial state
+log('<span style="color: var(--muted);">Ready — configure settings and press "Run Pipeline" or hit Space</span>', '');
+</script>
+</body>
+</html>

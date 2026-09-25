@@ -1,0 +1,84 @@
+# Pinoy Reek Drama Niche Template
+# Source: Master Spec §12, ADR-0002 §Notes
+#
+# Used by PinoyDramaStoryEngine to generate Pinoy drama stories with:
+# - 4 characters (Aling Nena, Kiko, Mia, Apo Lola) with locked outfits/props
+# - Taglish (Tagalog-English) dialogue per scene
+# - Filipino household/neighborhood backgrounds
+# - 1 scene per 8 seconds (9:16 vertical)
+# - Emotional family drama arc
+
+niche: "pinoy_drama"
+
+story_structure:
+  acts: 3
+  pacing: "emotional_slow_build"
+  tension_curve: [0.2, 0.4, 0.7, 0.5, 0.9, 0.6, 1.0]
+  beat_map:
+    act_1: "family_intro_and_conflict"       # characters introduced, problem stated
+    act_2: "struggle_and_revelation"         # middle struggle, revelations
+    act_3: "resolution_and_hope"             # climax, resolution, family unity
+
+scene_types:
+  - family_gathering
+  - kitchen_confession
+  - street_encounter
+  - market_scene
+  - bedroom_moment
+  - front_yard_reflection
+  - prayer_time
+  - basketball_court
+  - sari_sari_store
+  - stairway_conversation
+  - dusk_ending
+  - sunset_resolution
+
+visual_guidance:
+  color_palette: ["warm_golden_hour", "indoor_natural", "subtle_shadows"]
+  lighting: "natural_indoor_afternoon_light_with_soft_shadows"
+  camera_style: "continuous_shot_cinematic_vertical_9x16"
+  mood: "emotional_pinoy_family_drama"
+  recommended_aspect_ratio: "9:16"
+
+characters:
+  - name: "Aling Nena"
+    appearance: "Matang woman with warm face, natural makeup, sweat on forehead from market work"
+    clothing: "White work blouse with floral print, dark blue skirt, simple gold necklace, hair in neat bun"
+    props: ["Oblong plastic bag with market goods", "Worn slippers"]
+    gesture: "Hand on hip, eyebrows raised in concern"
+
+  - name: "Kiko"
+    appearance: "Lanky young man with tired eyes, stubble on chin, slouched posture"
+    clothing: "Faded black band t-shirt (slightly oversized), grey joggers, scuffed canvas shoes, silver ring"
+    props: ["Cellphone with cracked screen", "Ballpoint pen"]
+    gesture: "Arms crossed, avoids eye contact"
+
+  - name: "Mia"
+    appearance: "Petite girl with long dark hair in ponytail, bright observant eyes"
+    clothing: "White blouse with school emblem, grey pleated skirt, black ribbon in hair, simple stud earrings"
+    props: ["Small notebook", "Pencil case"]
+    gesture: "Head tilted, finger on chin when thinking"
+
+  - name: "Apo Lola"
+    appearance: "Elderly woman with kind wrinkled face, silver hair in braid, calm presence"
+    clothing: "Traditional Filipino terno dress in subdued colors, knit shawl over shoulders, simple earrings"
+    props: ["Rosary beads", "Small hand fan"]
+    gesture: "Touching rosary, gentle smile"
+
+# Dialogue language: Taglish (Tagalog-English mix)
+dialogue_language: "Taglish (Tagalog-English)"
+
+# Background settings for scenes
+backgrounds:
+  - "Interior of modest Filipino house living room, afternoon light through window, ceiling fan slowly turning, family photos on wall, simple wooden furniture"
+  - "Kitchen area of Filipino home, small gas stove, plate of leftover food on table, cup of coffee, afternoon light through curtains"
+  - "Street scene outside Filipino neighborhood, narrow road, jeepney in distance, tricycle passing, sari-sari store with goods outside"
+  - "Market area, crowded stalls with goods, vendors calling out, baskets of vegetables and fruits, sunlight through awning"
+  - "Bedroom of Filipino home, small room with bunk bed, fan overhead, family pictures on wall, notebook on bedside table"
+  - "Front yard of Filipino house, concrete ground, small garden with ornamental plants, wooden gate, afternoon shadows"
+  - "Prayer corner in Filipino home, religious images on wall, candle, bench, soft light, calm spiritual atmosphere"
+  - "Neighborhood basketball court, cemented court, makeshift hoops, afternoon sun, teenagers playing in background"
+  - "Sari-sari store porch, goods neatly arranged, owner sitting, afternoon light, neighborhood activity passing"
+  - "Concrete stairs in Filipino neighborhood, wall with faded paint, vine growing on wall, afternoon atmosphere"
+  - "Inside Filipino home at dusk, dim light, ceiling fan, family gathered, television in background, calm evening"
+  - "Outdoor area at sunset, golden light, silhouettes of houses, distant church bell, peaceful ending atmosphere"

@@ -1,0 +1,81 @@
+{
+  "provider": "mock",
+  "clip_seconds": 8.0,
+  "promotes": [
+    {
+      "scene_id": "scene-001",
+      "prompt": "exposition: a oppressive_and_claustrophobic moment around haunted doll.. Character: The Protagonist (Unseen silhouette, ordinary clothing, cautious demeanor., Casual dark clothing suitable for nighttime). Colors: deep_red, dark_blue, black. Lighting: low_contrast_with_sporadic_highlights. Camera: tight_closeups_then_wide_reveal. Aspect ratio: 9:16, Resolution: 720p, Duration: ~8.0s. [Maintain consistency: The Protagonist in Casual dark clothing suitable for nighttime]",
+      "clip_seconds": 8.0
+    },
+    {
+      "scene_id": "scene-002",
+      "prompt": "rising tension: a oppressive_and_claustrophobic moment around haunted doll.. Character: The Protagonist (Unseen silhouette, ordinary clothing, cautious demeanor., Casual dark clothing suitable for nighttime). Colors: deep_red, dark_blue, black. Lighting: low_contrast_with_sporadic_highlights. Camera: tight_closeups_then_wide_reveal. Aspect ratio: 9:16, Resolution: 720p, Duration: ~8.0s. [Maintain consistency: The Protagonist in Casual dark clothing suitable for nighttime]",
+      "clip_seconds": 8.0
+    },
+    {
+      "scene_id": "scene-003",
+      "prompt": "jump scare: a oppressive_and_claustrophobic moment around haunted doll.. Character: The Protagonist (Unseen silhouette, ordinary clothing, cautious demeanor., Casual dark clothing suitable for nighttime). Colors: deep_red, dark_blue, black. Lighting: low_contrast_with_sporadic_highlights. Camera: tight_closeups_then_wide_reveal. Aspect ratio: 9:16, Resolution: 720p, Duration: ~8.0s. [Maintain consistency: The Protagonist in Casual dark clothing suitable for nighttime]",
+      "clip_seconds": 8.0
+    },
+    {
+      "scene_id": "scene-004",
+      "prompt": "revelation: a oppressive_and_claustrophobic moment around haunted doll.. Character: The Protagonist (Unseen silhouette, ordinary clothing, cautious demeanor., Casual dark clothing suitable for nighttime). Colors: deep_red, dark_blue, black. Lighting: low_contrast_with_sporadic_highlights. Camera: tight_closeups_then_wide_reveal. Aspect ratio: 9:16, Resolution: 720p, Duration: ~8.0s. [Maintain consistency: The Protagonist in Casual dark clothing suitable for nighttime]",
+      "clip_seconds": 8.0
+    },
+    {
+      "scene_id": "scene-005",
+      "prompt": "climax: a oppressive_and_claustrophobic moment around haunted doll.. Character: The Protagonist (Unseen silhouette, ordinary clothing, cautious demeanor., Casual dark clothing suitable for nighttime). Colors: deep_red, dark_blue, black. Lighting: low_contrast_with_sporadic_highlights. Camera: tight_closeups_then_wide_reveal. Aspect ratio: 9:16, Resolution: 720p, Duration: ~8.0s. [Maintain consistency: The Protagonist in Casual dark clothing suitable for nighttime]",
+      "clip_seconds": 8.0
+    },
+    {
+      "scene_id": "scene-006",
+      "prompt": "exposition: a oppressive_and_claustrophobic moment around haunted doll.. Character: The Protagonist (Unseen silhouette, ordinary clothing, cautious demeanor., Casual dark clothing suitable for nighttime). Colors: deep_red, dark_blue, black. Lighting: low_contrast_with_sporadic_highlights. Camera: tight_closeups_then_wide_reveal. Aspect ratio: 9:16, Resolution: 720p, Duration: ~8.0s. [Maintain consistency: The Protagonist in Casual dark clothing suitable for nighttime]",
+      "clip_seconds": 8.0
+    },
+    {
+      "scene_id": "scene-007",
+      "prompt": "rising tension: a oppressive_and_claustrophobic moment around haunted doll.. Character: The Protagonist (Unseen silhouette, ordinary clothing, cautious demeanor., Casual dark clothing suitable for nighttime). Colors: deep_red, dark_blue, black. Lighting: low_contrast_with_sporadic_highlights. Camera: tight_closeups_then_wide_reveal. Aspect ratio: 9:16, Resolution: 720p, Duration: ~8.0s. [Maintain consistency: The Protagonist in Casual dark clothing suitable for nighttime]",
+      "clip_seconds": 8.0
+    },
+    {
+      "scene_id": "scene-008",
+      "prompt": "jump scare: a oppressive_and_claustrophobic moment around haunted doll.. Character: The Protagonist (Unseen silhouette, ordinary clothing, cautious demeanor., Casual dark clothing suitable for nighttime). Colors: deep_red, dark_blue, black. Lighting: low_contrast_with_sporadic_highlights. Camera: tight_closeups_then_wide_reveal. Aspect ratio: 9:16, Resolution: 720p, Duration: ~8.0s. [Maintain consistency: The Protagonist in Casual dark clothing suitable for nighttime]",
+      "clip_seconds": 8.0
+    },
+    {
+      "scene_id": "scene-009",
+      "prompt": "revelation: a oppressive_and_claustrophobic moment around haunted doll.. Character: The Protagonist (Unseen silhouette, ordinary clothing, cautious demeanor., Casual dark clothing suitable for nighttime). Colors: deep_red, dark_blue, black. Lighting: low_contrast_with_sporadic_highlights. Camera: tight_closeups_then_wide_reveal. Aspect ratio: 9:16, Resolution: 720p, Duration: ~8.0s. [Maintain consistency: The Protagonist in Casual dark clothing suitable for nighttime]",
+      "clip_seconds": 8.0
+    },
+    {
+      "scene_id": "scene-010",
+      "prompt": "climax: a oppressive_and_claustrophobic moment around haunted doll.. Character: The Protagonist (Unseen silhouette, ordinary clothing, cautious demeanor., Casual dark clothing suitable for nighttime). Colors: deep_red, dark_blue, black. Lighting: low_contrast_with_sporadic_highlights. Camera: tight_closeups_then_wide_reveal. Aspect ratio: 9:16, Resolution: 720p, Duration: ~8.0s. [Maintain consistency: The Protagonist in Casual dark clothing suitable for nighttime]",
+      "clip_seconds": 8.0
+    },
+    {
+      "scene_id": "scene-011",
+      "prompt": "exposition: a oppressive_and_claustrophobic moment around haunted doll.. Character: The Protagonist (Unseen silhouette, ordinary clothing, cautious demeanor., Casual dark clothing suitable for nighttime). Colors: deep_red, dark_blue, black. Lighting: low_contrast_with_sporadic_highlights. Camera: tight_closeups_then_wide_reveal. Aspect ratio: 9:16, Resolution: 720p, Duration: ~8.0s. [Maintain consistency: The Protagonist in Casual dark clothing suitable for nighttime]",
+      "clip_seconds": 8.0
+    },
+    {
+      "scene_id": "scene-012",
+      "prompt": "rising tension: a oppressive_and_claustrophobic moment around haunted doll.. Character: The Protagonist (Unseen silhouette, ordinary clothing, cautious demeanor., Casual dark clothing suitable for nighttime). Colors: deep_red, dark_blue, black. Lighting: low_contrast_with_sporadic_highlights. Camera: tight_closeups_then_wide_reveal. Aspect ratio: 9:16, Resolution: 720p, Duration: ~8.0s. [Maintain consistency: The Protagonist in Casual dark clothing suitable for nighttime]",
+      "clip_seconds": 8.0
+    },
+    {
+      "scene_id": "scene-013",
+      "prompt": "jump scare: a oppressive_and_claustrophobic moment around haunted doll.. Character: The Protagonist (Unseen silhouette, ordinary clothing, cautious demeanor., Casual dark clothing suitable for nighttime). Colors: deep_red, dark_blue, black. Lighting: low_contrast_with_sporadic_highlights. Camera: tight_closeups_then_wide_reveal. Aspect ratio: 9:16, Resolution: 720p, Duration: ~8.0s. [Maintain consistency: The Protagonist in Casual dark clothing suitable for nighttime]",
+      "clip_seconds": 8.0
+    },
+    {
+      "scene_id": "scene-014",
+      "prompt": "revelation: a oppressive_and_claustrophobic moment around haunted doll.. Character: The Protagonist (Unseen silhouette, ordinary clothing, cautious demeanor., Casual dark clothing suitable for nighttime). Colors: deep_red, dark_blue, black. Lighting: low_contrast_with_sporadic_highlights. Camera: tight_closeups_then_wide_reveal. Aspect ratio: 9:16, Resolution: 720p, Duration: ~8.0s. [Maintain consistency: The Protagonist in Casual dark clothing suitable for nighttime]",
+      "clip_seconds": 8.0
+    },
+    {
+      "scene_id": "scene-015",
+      "prompt": "climax: a oppressive_and_claustrophobic moment around haunted doll.. Character: The Protagonist (Unseen silhouette, ordinary clothing, cautious demeanor., Casual dark clothing suitable for nighttime). Colors: deep_red, dark_blue, black. Lighting: low_contrast_with_sporadic_highlights. Camera: tight_closeups_then_wide_reveal. Aspect ratio: 9:16, Resolution: 720p, Duration: ~8.0s. [Maintain consistency: The Protagonist in Casual dark clothing suitable for nighttime]",
+      "clip_seconds": 8.0
+    }
+  ]
+}

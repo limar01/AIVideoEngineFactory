@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Hermes Voice Assistant</title>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --card: #1a1a1a;
+    --accent: #60a5fa;
+    --text: #e0e0e0;
+    --muted: #888;
+    --danger: #ef4444;
+    --success: #22c55e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    gap: 16px;
+  }
+  .header { text-align: center; margin-bottom: 8px; }
+  .header h1 { font-size: 1.4rem; color: var(--accent); }
+  .header p { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+  .status {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px; background: var(--card); border-radius: 20px;
+    font-size: 0.85rem;
+  }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .status-dot.ok { background: var(--success); }
+  .status-dot.err { background: var(--danger); }
+  .chat-box {
+    width: 100%; max-width: 500px; height: 60vh;
+    background: var(--card); border-radius: 12px;
+    padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+    border: 1px solid #333;
+  }
+  .msg { padding: 8px 12px; border-radius: 12px; max-width: 85%; font-size: 0.9rem; line-height: 1.4; }
+  .msg.user { align-self: flex-end; background: #2563eb; color: white; border-bottom-right-radius: 4px; }
+  .msg.agent { align-self: flex-start; background: #333; color: var(--text); border-bottom-left-radius: 4px; }
+  .msg.thinking { align-self: center; background: #444; font-style: italic; color: var(--muted); }
+  .controls { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 8px; }
+  .mic-btn {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: var(--accent); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .mic-btn:hover { transform: scale(1.05); }
+  .mic-btn:active { transform: scale(0.95); }
+  .mic-btn.recording { background: var(--danger); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); } 50% { box-shadow: 0 0 0 20px rgba(239,68,68,0); } }
+  .mic-btn:disabled { background: #444; cursor: not-allowed; }
+  .mic-icon { width: 32px; height: 32px; }
+  .transcript-box {
+    width: 100%; max-width: 500px;
+    background: var(--card); border: 1px solid #333; border-radius: 12px;
+    padding: 12px; font-size: 0.85rem; color: var(--muted);
+    min-height: 40px;
+  }
+  .transcript-box .transcript-text { color: var(--text); font-size: 0.95rem; margin-top: 4px; }
+  .wave {
+    width: 200px; height: 40px; display: flex; align-items: center; gap: 3px; justify-content: center;
+  }
+  .wave-bar { width: 3px; background: var(--accent); border-radius: 2px; transition: height 0.1s; }
+  .auth-section {
+    background: var(--card); padding: 12px; border-radius: 12px; width: 100%; max-width: 500px;
+    border: 1px solid #333;
+  }
+  .auth-section input {
+    width: 100%; padding: 10px; margin: 4px 0; background: #222; border: 1px solid #444;
+    color: var(--text); border-radius: 8px; font-size: 0.9rem;
+  }
+  .save-btn { padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 8px; }
+  .error { color: var(--danger); font-size: 0.8rem; text-align: center; }
+  .play-btn {
+    background: none; border: 1px solid var(--accent); color: var(--accent);
+    padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 0.8rem;
+    display: none;
+  }
+  .play-btn:hover { background: rgba(96,165,250,0.1); }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎙️ Hermes Voice</h1>
+    <p>Tap to talk — hands-free AI assistant</p>
+  </div>
+
+  <div class="auth-section" id="authSection">
+    <div style="font-size:0.8rem;color:var(--muted);margin-bottom:8px;">Dashboard login (for LAN access)</div>
+    <input type="text" id="username" placeholder="Username (e.g. limar01)" value="limar01">
+    <input type="password" id="password" placeholder="Password" value="limar01">
+    <button class="save-btn" onclick="saveAuth()">Save</button>
+    <div class="error" id="authError"></div>
+  </div>
+
+  <div class="status">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Connecting...</span>
+  </div>
+
+  <div class="chat-box" id="chatBox">
+    <div class="msg agent">Hi! Tap the mic and say something. I'll listen, think, and reply with voice.</div>
+  </div>
+
+  <div class="transcript-box" id="transcriptBox">
+    <div class="wave" id="wave"></div>
+    <div class="transcript-text" id="transcriptText">Tap mic to start</div>
+  </div>
+
+  <div class="controls">
+    <button class="mic-btn" id="micBtn" onclick="toggleMic()">
+      <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="22"/>
+      </svg>
+    </button>
+    <button class="play-btn" id="playBtn" onclick="playAudio()">🔊 Play reply</button>
+  </div>
+
+<script>
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let isProcessing = false;
+let audioCtx = null;
+let authToken = localStorage.getItem('hermesVoiceToken') || '';
+
+// Build wave bars
+const waveEl = document.getElementById('wave');
+for (let i = 0; i < 30; i++) {
+  const bar = document.createElement('div');
+  bar.className = 'wave-bar';
+  bar.style.height = '4px';
+  waveEl.appendChild(bar);
+}
+const waveBars = waveEl.querySelectorAll('.wave-bar');
+
+function saveAuth() {
+  const u = document.getElementById('username').value.trim();
+  const p = document.getElementById('password').value;
+  if (!u || !p) { showError('Enter username and password'); return; }
+  fetch('http://omarchy.local:9119/api/auth/login', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({username: u, password: p})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok || data.token || data.access_token) {
+      const token = data.token || data.access_token || '';
+      localStorage.setItem('hermesVoiceToken', token);
+      authToken = token;
+      document.getElementById('authError').textContent = '✓ Saved';
+      setTimeout(() => document.getElementById('authError').textContent = '', 2000);
+      checkConnection();
+    } else {
+      showError('Login failed: ' + (data.detail || data.message || 'unknown'));
+    }
+  })
+  .catch(e => showError('Connection failed: ' + e.message));
+}
+
+function showError(msg) {
+  document.getElementById('authError').textContent = msg;
+}
+
+async function checkConnection() {
+  try {
+    const r = await fetch('http://omarchy.local:9119/api/health', {
+      headers: authToken ? {'Authorization': 'Bearer ' + authToken} : {}
+    });
+    const d = await r.json();
+    if (d.ok) {
+      setStatus('ok', 'Connected to Hermes');
+      startVoiceLoop();
+    } else {
+      setStatus('err', 'Not authenticated — save login above');
+    }
+  } catch(e) {
+    setStatus('err', 'Cannot reach Hermes at omarchy.local:9119');
+  }
+}
+
+function setStatus(state, text) {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot ' + state;
+  document.getElementById('statusText').textContent = text;
+}
+
+async function startVoiceLoop() {
+  // Auto-start listening when ready
+  await toggleMic();
+}
+
+async function toggleMic() {
+  if (isProcessing) return;
+  if (isRecording) {
+    stopRecording();
+  } else {
+    await startRecording();
+  }
+}
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+    mediaRecorder = new MediaRecorder(stream, {mimeType: 'audio/webm;codecs=opus'});
+    audioChunks = [];
+    
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+    
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      await processAudio();
+    };
+    
+    mediaRecorder.start();
+    isRecording = true;
+    document.getElementById('micBtn').classList.add('recording');
+    document.getElementById('transcriptText').textContent = 'Listening...';
+    startWaveAnimation();
+  } catch(e) {
+    document.getElementById('transcriptText').textContent = 'Mic access denied — allow microphone in browser';
+    setStatus('err', 'Mic denied');
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  isRecording = false;
+  document.getElementById('micBtn').classList.remove('recording');
+  stopWaveAnimation();
+}
+
+function startWaveAnimation() {
+  let frame = 0;
+  function animate() {
+    if (!isRecording) return;
+    waveBars.forEach((bar, i) => {
+      bar.style.height = (Math.random() * 30 + 4) + 'px';
+    });
+    frame++;
+    if (isRecording) requestAnimationFrame(animate);
+  }
+  animate();
+}
+
+function stopWaveAnimation() {
+  waveBars.forEach(bar => bar.style.height = '4px');
+}
+
+async function processAudio() {
+  if (audioChunks.length === 0) return;
+  isProcessing = true;
+  document.getElementById('micBtn').disabled = true;
+  document.getElementById('transcriptText').textContent = 'Transcribing...';
+
+  try {
+    const blob = new Blob(audioChunks, {type: 'audio/webm;codecs=opus'});
+    const base64 = await blobToBase64(blob);
+    const dataUrl = 'data:audio/webm;codecs=opus;base64,' + base64;
+
+    // Send to Hermes for transcription
+    const transcribeRes = await fetch('http://omarchy.local:9119/api/audio/transcribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + authToken
+      },
+      body: JSON.stringify({data_url: dataUrl})
+    });
+    
+    const transcribeData = await transcribeRes.json();
+    
+    if (!transcribeData.ok) {
+      throw new Error(transcribeData.detail || 'Transcription failed');
+    }
+    
+    const transcript = transcribeData.transcript?.trim() || '';
+    
+    if (!transcript) {
+      document.getElementById('transcriptText').textContent = 'No speech detected — tap mic again';
+      isProcessing = false;
+      document.getElementById('micBtn').disabled = false;
+      return;
+    }
+    
+    // Show transcript
+    document.getElementById('transcriptText').textContent = 'You: ' + transcript;
+    
+    // Add user message to chat
+    addMessage('user', transcript);
+    document.getElementById('transcriptText').textContent = 'Thinking...';
+    
+    // Send to Hermes agent via chat endpoint
+    const chatRes = await fetch('http://omarchy.local:9119/api/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + authToken
+      },
+      body: JSON.stringify({
+        model: 'upstage/solar-pro4:free',
+        messages: [{role: 'user', content: transcript}],
+        max_tokens: 1000,
+        stream: false
+      })
+    });
+    
+    const chatData = await chatRes.json();
+    
+    if (!chatData.choices || !chatData.choices[0]) {
+      throw new Error('No response from agent');
+    }
+    
+    const reply = chatData.choices[0].message.content;
+    addMessage('agent', reply);
+    document.getElementById('transcriptText').textContent = '✓ Got response — playing...';
+    
+    // Send to TTS
+    const speakRes = await fetch('http://omarchy.local:9119/api/audio/speak', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + authToken
+      },
+      body: JSON.stringify({text: reply})
+    });
+    
+    const speakData = await speakRes.json();
+    
+    if (!speakData.ok) {
+      throw new Error(speakData.detail || 'TTS failed');
+    }
+    
+    // Play the audio
+    playAudioData(speakData.data_url);
+    document.getElementById('transcriptText').textContent = 'Reply played ✓ — tap mic for next';
+    
+  } catch(e) {
+    console.error('Voice loop error:', e);
+    document.getElementById('transcriptText').textContent = 'Error: ' + e.message;
+    setStatus('err', 'Error in voice loop');
+    addMessage('agent', '⚠️ ' + e.message);
+  }
+  
+  isProcessing = false;
+  document.getElementById('micBtn').disabled = false;
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+function addMessage(role, text) {
+  const box = document.getElementById('chatBox');
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function playAudioData(dataUrl) {
+  const audio = new Audio(dataUrl);
+  audio.onended = () => {
+    document.getElementById('playBtn').style.display = 'none';
+  };
+  audio.oncanplay = () => {
+    document.getElementById('playBtn').style.display = 'inline-block';
+  };
+  audio.play().catch(e => {
+    // Autoplay blocked — show play button
+    document.getElementById('playBtn').style.display = 'inline-block';
+    document.getElementById('playBtn').onclick = () => audio.play();
+  });
+}
+
+// Check connection on load
+checkConnection();
+</script>
+</body>
+</html>
