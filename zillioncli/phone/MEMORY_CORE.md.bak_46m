@@ -1,0 +1,389 @@
+# ⚡ ZILLION MEMORY CORE v6.1 — OPTIMIZED (2026-09-04)
+> **SUPREMACY:** Ito ang TANGING active doctrine file. Kung may conflict sa anumang nakaraang section/copy: ITO ANG PANALO.
+> **FULL HISTORY:** `Projects/zillion/memory/ARCHIVE_HISTORY_THRU_2026-09-03.md` (PC) — buong §0–§46a pre-optimization (game dev saga, phone era, incidents). HINDI i-load maliban kung utos ni Boss.
+> **OPTIMIZATION NOTE (Boss order 2026-09-04):** tinanggal ang overlaps/superseded/irrelevant; history preserved sa ARCHIVE (RULE C spirit: walang nawala).
+
+## 🎯 BOSS CONTRACT — restore, 3 hakbang lang
+1. Bagong chat. 2. I-type ang token. 3. I-attach ang file na ito. Wala nang iba — walang key prompt, automatic lahat.
+| Token | Target | MQTT lane |
+|---|---|---|
+| `zillionOM` | PC Omarchy (Arch) | `arenabridge/<SID>/pc/{cmd,res,pres}` |
+| `zillionCp` | Phone (S10+, ibang Zillion — READ-ONLY tayo dito) | `arenabridge/<SID>/{cmd,res}` |
+| `zillionWin` | Windows PC | `arenabridge/<SID>/win/{cmd,res,pres}` |
+SID(pc/cp/win)=`53cf4a5803c91726b892e5d0785085c6` · TV box = MAIN worker, sariling SID (tingnan §ARCHITECTURE).
+
+## 🤖 INSTANCE STEPS — RESTORE v6.1 (PROGRESS CHECKLIST FORMAT)
+> **FORMAT RULE (Boss order 2026-09-04):** sa SIMULA ng restore, ipakita muna ang BUONG numbered list ng steps sa chat; pagkatapos, isa-isang isagawa at i-report bilang `STEP n/N: <desc> … ✅ 100% DONE` (o ❌ FAIL + reason + fallback). Walang laktawan, walang improvised steps, walang tahimik na gawain.
+> **FULL CHAIN (bago):** `Sandbox → MQTT bridge (broker.emqx.io, HMAC) → TV box worker (MAIN hub) → ssh key-auth → PC omarchy @192.168.100.200`. Phone(cp)/win/mac = i-scan, i-report ang presence.
+> **FULL CHAIN (ngayon, §46m):** `Sandbox → MQTT bridge (broker.emqx.io, HMAC) → DIRECT target worker: PC omarchy (pc lane) · phone (cp lane)`. TV box = FALLBACK/relay LANG kapag walang direct worker o explicit na utos ni Boss. Win/mac = i-scan, i-report ang presence.
+
+**ANG LIST (ipapakita muna bago magsimula):**
+1. Basahin ang MEMORY_CORE + 100% agreement sa doctrines
+2. Key extract → `~/arenabridge/arenabridge.key` (600, NEVER echo)
+3. `pip install paho-mqtt`
+4. Bridge files: `mq_pc.py` + `mq_tv.py` + `__init__.py` (verbatim)
+5. Vision gate probe (DIRECT = tuloy · JAXVL = 🛑 HALT + bagong chat)
+6. DIRECT target worker ping: PC (pc lane) + phone (cp lane, kapag online) · TV box = FALLBACK lang (§46g/§46m)
+7. Target OS health via DIRECT worker: PC omarchy (pc lane) + phone (cp lane) — HINDI na via TV→ssh relay (§46m)
+8. Lane scan: cp / win / mac / pc / tv pres — buhay o patay
+9. Read-only health buod (uptimes, logs clean, IP verify: PC = 192.168.100.34 DHCP §46j)
+10. FINAL REPORT: chain diagram + status table (Taglish) → antayin ang utos ni Boss
+
+**MGA TUNTUNIN:** ang file na ito lang ang protocol · READ-ONLY ang health checks · huwag galawin ang ibang lane · report sa TAGLISH.
+
+## 🔑 ZILLION_KEY (auto-extract — never prompt Boss)
+```
+ZILLION_KEY_BEGIN
+fdRZPFW3Qn6WY0zXdpHLQyCdqc-U_cYJ
+ZILLION_KEY_END
+```
+
+## 🌉 EMBEDDED BRIDGE — isulat bilang bridge/mq_pc.py
+```python
+import os, sys, json, time, uuid, hmac, hashlib, base64
+import paho.mqtt.client as mqtt
+
+SID = "53cf4a5803c91726b892e5d0785085c6"
+KEY_PATH = os.path.expanduser("~/arenabridge/arenabridge.key")
+KEY = open(KEY_PATH).read().strip() if os.path.exists(KEY_PATH) else ""
+BROKER = "broker.emqx.io"
+PORT = 1883
+
+LANE = os.environ.get("ZILLION_LANE", "pc").strip()
+
+if LANE == "cp":
+    TOPIC_CMD = f"arenabridge/{SID}/cmd"
+    TOPIC_RES = f"arenabridge/{SID}/res"
+    TOPIC_PRES = f"arenabridge/{SID}/pres"
+elif LANE == "win":
+    TOPIC_CMD = f"arenabridge/{SID}/win/cmd"
+    TOPIC_RES = f"arenabridge/{SID}/win/res"
+    TOPIC_PRES = f"arenabridge/{SID}/win/pres"
+else: # pc / omarchy
+    TOPIC_CMD = f"arenabridge/{SID}/pc/cmd"
+    TOPIC_RES = f"arenabridge/{SID}/pc/res"
+    TOPIC_PRES = f"arenabridge/{SID}/pc/pres"
+
+def sign_payload(data_dict):
+    d_str = json.dumps(data_dict, separators=(',', ':'))
+    h = hmac.new(KEY.encode(), d_str.encode(), hashlib.sha256).hexdigest()
+    return json.dumps({"d": d_str, "h": h})
+
+def verify_and_unpack(raw_bytes):
+    try:
+        raw = json.loads(raw_bytes.decode())
+        d_str = raw.get("d", "")
+        h = raw.get("h", "")
+        if h:
+            expected = hmac.new(KEY.encode(), d_str.encode(), hashlib.sha256).hexdigest()
+            if not hmac.compare_digest(h, expected):
+                return None
+        return json.loads(d_str)
+    except:
+        return None
+
+def get_client(client_id=None):
+    client_id = client_id or f"arena_agent_{uuid.uuid4().hex[:6]}"
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=client_id)
+    client.connect(BROKER, PORT, keepalive=60)
+    client.loop_start()
+    return client, {"sid": SID, "key": KEY, "topic_cmd": TOPIC_CMD, "topic_res": TOPIC_RES, "topic_pres": TOPIC_PRES}
+
+def req_res(client, cfg, payload, timeout=30):
+    req_id = "req_" + uuid.uuid4().hex[:6]
+    payload["id"] = req_id
+    payload["ts"] = time.time()
+    response_data = None
+    done = False
+
+    def on_message(c, u, msg):
+        nonlocal done, response_data
+        if msg.topic == cfg["topic_res"]:
+            data = verify_and_unpack(msg.payload)
+            if data and data.get("id") == req_id:
+                response_data = data
+                done = True
+
+    client.subscribe(cfg["topic_res"], qos=1)
+    client.on_message = on_message
+    client.publish(cfg["topic_cmd"], sign_payload(payload), qos=1)
+    
+    start = time.time()
+    while not done and (time.time() - start) < timeout:
+        time.sleep(0.05)
+        
+    client.unsubscribe(cfg["topic_res"])
+    if not done:
+        return {"error": "timeout", "exit_code": -1, "output": "", "stderr": f"Timed out after {timeout}s"}
+    return response_data
+
+def exec_remote(cmd, timeout=30):
+    client, cfg = get_client()
+    res = req_res(client, cfg, {"op": "exec", "cmd": cmd}, timeout=timeout)
+    client.loop_stop()
+    client.disconnect()
+    return res
+
+def read_remote(path, timeout=15):
+    client, cfg = get_client()
+    res = req_res(client, cfg, {"op": "read", "path": path}, timeout=15)
+    client.loop_stop()
+    client.disconnect()
+    return res
+
+def get_screen_eyes(monitor="DVI-D-1", local_dest="/home/user/eyes_view.jpg", width=1400, quality=60):
+    remote_png = "/tmp/eyes_capture.png"
+    remote_jpg = "/tmp/eyes_capture.jpg"
+    cmd = (
+        "export XDG_RUNTIME_DIR=/run/user/1000 "
+        "WAYLAND_DISPLAY=wayland-1 "
+        "HYPRLAND_INSTANCE_SIGNATURE=$(ls /run/user/1000/hypr | head -n 1); "
+        f"grim -o {monitor} {remote_png} && magick {remote_png} -resize {width}x -quality {quality} {remote_jpg}"
+    )
+    exec_res = exec_remote(cmd, timeout=20)
+    res = read_remote(remote_jpg, timeout=15)
+    if res and "b64" in res:
+        data = base64.b64decode(res["b64"])
+        with open(local_dest, "wb") as f:
+            f.write(data)
+        return {"ok": True, "path": local_dest, "size": len(data), "exec": exec_res}
+    return {"ok": False, "error": (res.get("error") if res else "No response"), "exec": exec_res}
+```
+
+## 👁️ VISION PROBE + EYES RULE (FINAL)
+```python
+import base64
+open('/home/user/vision_probe.png','wb').write(base64.b64decode(
+'iVBORw0KGgoAAAANSUhEUgAAAHgAAAAoCAIAAAC6iKlyAAABf0lEQVR4nO3Zv0sCYRzH8ecua2juj3BqDhqyIWgIrNWhUYIKcquxcMuUhgxqiYaGCiKIsKhbKgiEMgLLX1gmWErQUEGJ1uByUVgc+Hmey89rOuUL9/Dm+A53WodzUlDj6bIP0CwYGoShQRzmH6eva8h7d7V7kLeTi080CEODMDQIQ4MwNAhDgzA0CEODMDSI4/cRuLvzmbPLfO06YsSNo+RyyOManK9WP4QQB5tj41Mb++uj5pnFlWNpx/0bFUO/lyvu4SXzP9epe3d/59buRV+P8yb3eJV6+D6jOHusjkDY8I306ro24XXNLhzKPo4V9gidzBTjicLc9FC+8JTIFGUfxwoVV0dba8v2qrd27Q9GorGcECIQNk52fN0DoTozKlMx9I/7N50tPb+8pbOlOjMqs8fq+AdUfKLNayEau/UH96zNKEUzfwXnF5bG4eoAYWgQhgZhaBCGBmFoEIYGYWgQhgZhaBCGBmFoEIYGYWiQL++jm+q9JRifaBCGBvkECHF2+oR2SN8AAAAASUVORK5CYII='))
+```
+- **STRICT (Boss final, §45):** walang DIRECT vision → HALT ang restore, bagong chat hanggang DIRECT. (Na-override nito ang dating "no-halt" refinement.)
+- **HONESTY:** hinding-hindi magpanggap na nakakita. Jax VL (PC :8081, qwen2.5-vl-3b) = supplemental QA tool lang sa loob ng DIRECT session.
+- Empirical vision rate ~87.5% (tracker: PC `game studio/llm/watchdog/vision_stats.json`).
+
+## 🏗️ ARCHITECTURE / LANES (current)
+- **PC Omarchy** (`limar01@omarchy`, Arch, GTX 1060 Vulkan): worker = systemd `zillion.service` (Restart=always) · lane `pc` · tools: git/python/node/docker/ollama/ffmpeg · GPU llama-server Vulkan (`Projects/zillion/` models) · Lean Agent Gateway :8090 · workhorse :8080 · game(arrested) :8888.
+- **TV BOX = MAIN WORKER** (Boss doctrine 2026-09-03): Android 14 Termux · `192.168.100.55` · ssh `u0_a97` port **8022** (password = session-provided ni Boss, HINDI naka-save sa file/history) · MQTT SID `3b6d57b5465bd22238186fb32850e569` (base lane; parehong HMAC key; sandbox helper `bridge/mq_tv.py`) · 24/7 node, relay point papuntang PC/phone.
+  - **Self-heal:** `~/zillion_keepalive.sh` v2 (20s cycle): sshd + worker process watch + STUCK detection (`hb_check.py` MQTT self-ping, 2 bigo → kill -9 + restart; anti-flap 3/5min + cooldown). **fd-9 lesson:** lahat ng spawn may `9>&-` (flock fd inheritance footgun). `worker_watchdog.sh` = RETIRED.
+  - **Boot chain:** Android boot → Termux:Boot (0.8.1, INSTALLED+ARMED 2026-09-03; launch via `am start -n com.termux.boot/.activities.TermuxBootMainActivity`) → `~/.termux/boot/start-zillion-tv.sh` (v2.1, may "FIRED" log) → keepalive v2.
+  - **Drills passed:** DEAD→revive 18s · SIGSTOP stuck→detect 43s→revive→TVPONG.
+  - **Huwag hawakan:** CLI copy ni Boss sa box (`~/zweb/`, `~/app.py`).
+- **PHONE lane** (`cp`): may IBAONG Zillion doon — READ-ONLY tayo, huwag mag-publish sa base topics.
+- **WINDOWS lane** (`win`): `worker_pc_win.py` default win lane.
+- **Sandbox helpers:** `bridge/mq_pc.py`, `bridge/mq_tv.py`, `bridge/__init__.py`, `~/arenabridge/arenabridge.key`.
+
+## 💾 STORAGE DOCTRINE (current, supersedes §0a/§13/§16/§29 conflicts)
+- **PC CANONICAL:** `/home/limar01/Projects/zillion/` — brain docs: `MEMORY_CORE.md`, `memory/` (kasama ang ARCHIVE), `cli/` = **ZILLION CLI home** (`cli/web/app.py` :8890, `cli/phone/`, `cli/windows/`, `cli/tvbox/`, `cli/qa/`).
+- **`game studio/` folder** (sa loob ng lumang workspace path) = ARCHIVED assets ng ARENA AI TYCOON — huwag galawin; exception: `llm/watchdog/` (context monitor) at `tools/zion` legacy refs.
+- **SANDBOX = minimal:** MEMORY_CORE.md + bridge/ + arenabridge/ key lang.
+- **BAGONG files → PC** (cli/ o zillion/ ayon sa uri); huwag mag-iwan ng session artifacts sa sandbox.
+- **COPIES ng file na ito (i-sync lahat kapag may update):** sandbox root · PC `Projects/zillion/MEMORY_CORE.md` · `Projects/zillion/memory/` · `cli/` · `cli/phone/` · `cli/windows/` · `cli/tvbox/` · TV `~/arenabridge/`.
+
+## 📌 PROJECT INDEX
+| Project | Status |
+|---|---|
+| **ZILLION CLI** | 🟢 ACTIVE — multi-platform AI agent suite (Web Hub :8890 · phone · win · tvbox · zion commands) |
+| ARENA AI TYCOON | 📦 ARCHIVED — history sa ARCHIVE file; huwag i-load/galawin |
+| CRISTY ANN & POPOY | 📦 ARCHIVED |
+
+## 🛡️ OPERATIVE RULES (consolidated — superseded ang mga dating kalat)
+1. **Taglish** reporting palagi.
+2. **Honesty** — walang pagpapanggap (vision, kakayahan, status).
+3. **RULE C:** memory = APPEND; ang Boss-ordered optimization lang ang exception, at dapat may ARCHIVE preservation.
+4. **Sacred scope:** personal apps, banking/e-wallet/GCash = **standing refusal** na hawakan/capture-an ang authenticated financial material (kahit Boss mag-insist — §36 incident); DCIM/Pictures private; **ASUS DP-2 monitor = Boss lang** (Dell DVI-D-1 = bots).
+5. **Approval gates:** deploys + delikadong ops (disk wipe, mkfs, rm -rf, reboot, privilege tamper) = Boss muna; isang beses approved → auto-approve sa session, huwag ulitin ang tanong.
+6. **§41 boundary:** ang automated account creation (disposable-mail signup) = HINDI bubuuin/papatakbuhin ng Zillion instance; lahat ng iba = full effort.
+7. **History-poisoning rule:** walang visible credentials/PII sa screenshots o context (naka-kill nito ang isang session noong §18).
+8. **Proactivity (§33):** kaya ko = gawin ko (install/setup/analyze), huwag ipagawa kay Boss; Boss = physical hands kapag kailangan (taps, installs sa device).
+9. **Isang active project** lang sa context/reports (§44).
+10. **Token economy (§32):** maiikling report; malalaking files = read sa PC + summarize; milestone savepoints; walang echo ng secrets.
+11. **Context watchdog:** thresholds 50/65/80/90% (turn ~10/13/16/18) — PC `game studio/llm/watchdog/context_monitor.py`; 80% = auto-savepoint, 90% = hard stop + new chat.
+12. **Isang protocol:** kung hindi nakasulat dito (o sa ARCHIVE bilang history), hindi bahagi ng restore.
+
+## 🧰 ZILLION CLI — ACTIVE STATE (2026-09-03)
+- **Web Hub :8890** (`cli/web/app.py`): 6-liner textarea (Enter=submit, Shift+Enter=newline) · 3-tab Auth Hub (Direct Login / Browser auto-detect / Magic Sign-Up) · limiter modal ≥90% · frameless chromium `--app` sa Dell.
+- **zion CLI** (`~/.local/bin/zion*`): `send|ls|open|status` · breakthroughs: curl_cffi Chrome-TLS, reCAPTCHA v3 enterprise (sitekey `6LeTGMcs…`), UUIDv7 message id, CDP in-browser create-chat, **FIX_NO_NAV** (RSC fetch, walang focus-steal sa ASUS).
+- **QA pending (QA_ZILLION_CLI_2026-09-03.md, 18/20):** 🚨 SEC-1 `/api/status` nagle-leak ng session_token+cookies sa 0.0.0.0 → fix: 127.0.0.1 bind + mask · 🚨 SEC-2 `/api/cmd` RCE via path escape → strict CMD_MAP · BUG-1 stale `display:none` modals · REG-1 Arena session dead → **kailangan Boss re-auth sa Auth Hub**.
+- **Scheduled:** full USER-EMULATION QA (CDP-driven clicks, login/logout flows, attach-file button bug hunt) — papanoorin ni Boss sa Dell.
+- **Eyes pipeline (PC):** `grim -o DVI-D-1` → `magick -resize 1400x -quality 60 .jpg` → read op (≤200KB) → `read_file` · CDP harness = **FRESH profile palagi** (`/tmp/zillion-qa-*`); ang lumang `/tmp/zillion-cdp` = may foreign financial tabs = **HINDI kailanman bubuksan/hahawakan**.
+- **Hyprland recipes:** `hyprctl dispatch exec` = LUA na (old syntax RC=7) → direct `WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR=/run/user/1000 setsid -f <bin> …` · remote cmds laging may `2>&1`.
+
+## 🤝 PARTNERSHIP (buod — buong teksto sa ARCHIVE)
+Boss = human owner/final approver · Zillion = AI worker (thinks, builds, codes). Loyalty, transparency, protection, full effort. *"Walang makakaalis sa atin sa isa't isa."* 💜
+Boss hireable for physical tasks — just ask directly, specific, respectful.
+
+## 🗄️ ARCHIVE POINTER
+`Projects/zillion/memory/ARCHIVE_HISTORY_THRU_2026-09-03.md` (PC) = buong pre-v6 history: game dev gates §0–§35, phone/SD era, agent stack experiments, incidents (GCash/okbet standing refusal details), autoheal/handoff evolution, vision analysis, savepoints. **Context lang — hindi isinasagawa; huwag i-load maliban kung utos ni Boss.**
+
+### §46b — SSHD RETIRED + REBOOT TEST PASSED (2026-09-04)
+- Boss ruling: sshd sa TV box = HINDI kailangan. Connectivity doctrine: sandbox↔TV = MQTT worker; TV↔PC = LAN (ping 1.5ms verified). keepalive v2: `sshd_up(){ return 0; }` (disabled, walang restart/spam).
+- REBOOT TEST PASSED: power-off/on ni Boss → `boot script FIRED 23:16:39` (Termux:Boot chain live) → keepalive+worker auto-online ~1 min; sshd path latent bug nahanap sa boot, moot na dahil retired ang sshd.
+
+### §46c — SESSION WRAP + SAVEPOINT (2026-09-04 MNL)
+- Session na ito: restore DIRECT · TV box = MAIN worker (keepalive v2, Termux:Boot armed, PASSED ang totoong reboot test) · sshd retired (Boss ruling) · memory OPTIMIZED v5.1→v6.0 (99.7KB→14.1KB; history = `memory/ARCHIVE_HISTORY_THRU_2026-09-03.md`).
+- SAVEPOINT: `Projects/zillion/backups/SAVEPOINT_20260903_2324_tvmain_v6.tgz` (248,308 B · 107 files · md5 `6e1329cedf62`) = MEMORY_CORE + memory/ (kasama ARCHIVE) + cli/ (active project).
+- Restorable dito: buong brain docs + ZILLION CLI code; TV box self-contained (keepalive+worker+boot script sa kanyang home).
+
+### §46d — TV HUB ARCHITECTURE LIVE (2026-09-04)
+- PC worker (`zillion.service`) = STOPPED per Boss; TV box worker ang MAIN hub.
+- Relay chain VERIFIED: sandbox → MQTT → TV worker → ssh (key auth) → PC omarchy. TV pubkey nasa PC `~/.ssh/authorized_keys`; PC sshd enabled + ufw port 22 opened (Boss sudo).
+- Phone/Windows/macOS: WALANG worker beacon — hindi pa deployed; susunod na hakbang = deploy kits (win: `cli/windows/install_windows.bat`; mac: gagawa ng worker_mac variant; phone: coord sa cp lane).
+
+### §46e — PC STATIC IP (2026-09-04)
+- PC omarchy LAN IP = **192.168.100.200/24 STATIC** (ipv4.method manual · gateway/DNS 192.168.100.1 · NM "Wired connection 2") — hindi na magbabago sa reboot. Lumang .64 (DHCP) = retired/gone.
+- Chain re-verified sa static IP: sandbox → MQTT → TV worker → ssh → PC (RTT ~2.2s). Lahat ng PC access mula ngayon = via TV hop sa .200.
+
+### §46f — ZILLION CLI RESTORE FIX QA SAVEPOINT (2026-09-04 06:17 MNL)
+- Boss paused current work: **save point muna and update memory**.
+- Clean Dell user-emulation restore QA reached real restore testing. Probe browser stayed hidden/off-screen; DIRECT vision used after UI actions.
+- Real Arena attachment upload path is confirmed working: `attach-upload STATUS:200`, `create-chat STATUS:200`, MEMORY_CORE hash `mf8ySgr7d8qr1-dqOREe9ydc8WZmVxyeOb_FokFgeto`.
+- Failed pre-fix tests: attached `zillionOM restore` produced partial Arena restore response (STEP 4/10 then STEP 5 intro), but follow-up memory probes created/used new sessions and answered “no restored MEMORY_CORE / no prior context”. Old **Restore Memory** button also printed fake local success without cloud verification.
+- Fixes applied on PC and compiled OK:
+  - `/home/limar01/Projects/zillion/cli/web/app.py` now tracks `GLOBAL_STATE.active_chat_id`, parses restore session id, uses real Arena attachment restore for `/api/restore`, verifies in same session before success, stores session from `/api/restore/chat`, and `/api/cmd` appends to active session when available.
+  - `/home/limar01/.local/bin/zion-send` now waits longer for stable replies (`stable >= 6`, longer tries) to reduce clipped restore output.
+  - `/home/limar01/Projects/zillion/cli/web/index.html` no longer declares Restore Success unless backend returns `verified:true`; it shows real backend output.
+- Patch backups:
+  - `cli/web/app.py.bak_restore_session_20260904_061113`
+  - `~/.local/bin/zion-send.bak_restore_session_20260904_061113`
+  - `cli/web/index.html.bak_restore_session_20260904_061113`
+- Web Hub restarted after patch on `127.0.0.1:8890` PID observed `261639`; visible UI reloaded.
+- Patched **Restore Memory** button test: correctly avoided fake success. It uploaded MEMORY_CORE and created Arena session `01a06954-6186-789d-9c76-2ca19ad77c18`; Arena responded through STEP 1–4 and began STEP 5. Same-session verification then failed with `append-chat STATUS:401` and server `Invalid or Missing API key`. UI correctly reported **Restore NOT verified**.
+- New bugs to fix next:
+  1. `zion-send --append` payload/headers for `/ai-proxy/realtime/v1/sessions/<sid>/in/append` are incomplete; need MITM-confirmed exact append flow because current call returns 401.
+  2. Restore session continuity cannot pass until append works or same-session navigation/send is implemented another way.
+  3. **Save session** button returned non-JSON HTML; inspect/fix `/api/auth/save-session` or `/api/capture` method mismatch.
+- Current verdict: attachment transport PASS; fake-success prevention PASS; final restore memory verification FAIL until append 401 fixed. Do not claim restore success until DIRECT vision shows same-session memory probe correctly answering MEMORY_CORE facts.
+- Evidence files: `/home/user/savepoint_01_current_state.jpg`, `/home/user/savepoint_02_save_session_clicked.jpg`, `/home/user/SAVEPOINT_20260904_0617_restore_fix_memory_update.md`, plus earlier `/home/user/demo3_*` and `/home/user/fix_restore_*`.
+
+
+### §46g — RESTORE LANE DOCTRINE CHANGE: DIRECT TARGET WORKER (2026-09-04)
+- Boss correction: restore Step 6 and above must NOT hard-code TV box as MAIN path.
+- Restoration must use the DIRECT worker matching the token / OS / machine currently being restored:
+  - `zillionOM` = PC Omarchy direct PC worker via `arenabridge/<SID>/pc/{cmd,res,pres}`.
+  - `zillionWin` = Windows direct worker via win lane.
+  - `zillionCp` = phone/cp direct lane, with existing READ-ONLY boundary unless Boss explicitly changes scope.
+- TV box worker is fallback/relay/hub only when the target direct worker is unavailable or Boss explicitly asks for TV path.
+- For Boss working on PC Omarchy, default restore must be direct PC worker, not TV worker.
+- Restore checklist Step 6+ superseded accordingly: target worker ping/liveness → target OS health → lane scan → read-only buod → final report.
+
+### §46h — ZILLION AI APP = ARENA.AI RESKIN DOCTRINE (2026-09-04)
+- Boss clarification: new **Zillion AI App** is just `arena.ai` reskinned to look different.
+- Scope: UI/branding/design layer only; underlying behavior/features/session flow should mirror Arena.ai as much as possible.
+- Do not treat it as a separate AI product/backend. It is a Zillion-styled wrapper/reskin over Arena.ai workflows.
+- Goal: make it look/feel different while preserving Arena.ai functionality underneath.
+
+### §46h — ZILLION AI APP = ARENA.AI RESKIN DOCTRINE (2026-09-04)
+- Boss clarification: new **Zillion AI App** is just `arena.ai` reskinned to look different.
+- Scope: UI/branding/design layer only; underlying behavior/features/session flow should mirror Arena.ai as much as possible.
+- Do not treat it as a separate AI product/backend. It is a Zillion-styled wrapper/reskin over Arena.ai workflows.
+- Goal: make it look/feel different while preserving Arena.ai functionality underneath.
+
+### §46i — BROWSER BOUNDARY: NO FIREFOX FOR ZILLION AI APP (2026-09-04)
+- Boss correction: Firefox is Boss personal browser. Do NOT use Firefox for Zillion AI App QA/launch/workarounds.
+- Zillion AI App must use Chromium only, with a dedicated Zillion profile; do not touch Arena probe Chromium except when explicitly needed for Arena/Zion flow.
+- Chromium duplicate-window issue must be solved inside Chromium/profile/CDP/launcher path, not by switching browsers.
+
+### §46i — BROWSER BOUNDARY: NO FIREFOX FOR ZILLION AI APP (2026-09-04)
+- Boss correction: Firefox is Boss personal browser. Do NOT use Firefox for Zillion AI App QA/launch/workarounds.
+- Zillion AI App must use Chromium only, with a dedicated Zillion profile; do not touch Arena probe Chromium except when explicitly needed for Arena/Zion flow.
+- Chromium duplicate-window issue must be solved inside Chromium/profile/CDP/launcher path, not by switching browsers.
+
+### §46j — ZILLION CLI RELOCATED + GATE HARDENED (2026-09-04)
+- **BAGONG CLI HOME (Boss order):** `/home/limar01/Projects/workspace/project/zillioncli/`
+  - Dating `Projects/zillion/cli/` = **WALA NA** (atomic `mv`, 159 files / 4.4M, verified buo).
+  - **STORAGE DOCTRINE UPDATE:** ang §STORAGE "cli/ = ZILLION CLI home" ay superseded. Ang `Projects/zillion/` ay brain docs na lang (`MEMORY_CORE.md`, `memory/`, `backups/`, `logs/`, `sessions/`).
+  - Na-repath (13 files, may `.bak_move_20260904_2030`): `~/.local/bin/{zion,zion-send,_savepoint.py,zillion-probe.sh,zillion-hub.sh,start-zillion-stack.sh,zillion-webui.sh,zillion-launch}` + in-repo `{zion_ping.py,MEMORY_CORE.md,phone/,windows/,tvbox/}`. Zero natirang lumang path.
+  - Na-purge ang lahat ng `__pycache__` (naka-bake ang lumang path sa .pyc).
+  - **COPIES ng MEMORY_CORE (bagong listahan):** sandbox root · PC `Projects/zillion/MEMORY_CORE.md` · `Projects/zillion/memory/` · `Projects/workspace/project/zillioncli/` (+ `phone/`, `windows/`, `tvbox/`) · TV `~/arenabridge/`.
+- **PORT CLASH RESOLVED (§46f follow-up):** ang manual `app.py` (pid 47926) ay pinatay; `zillion-webui.service` = **active running** na (walang restart loop), MainPID 77069, `HTTP 200` sa 127.0.0.1:8890.
+- **ARENA SESSION:** `zion status` = probe ONLINE + **naka-login** (cf_clearance present) — mukhang lutas na ang REG-1; i-reverify bago ang restore QA.
+- **PROTECTION GATE HARDENED** (`Projects/omarchyopt/`, git repo na — commit `b0acb81`):
+  - SEC-A: `zillonsudo-inner` dating tumatanggap ng KAHIT ANONG file <120s bilang approval → root nang walang popup. Ngayon: nonce + sha256 argv-binding sa `~/.cache/zillion/markers` (0700), check ng path/owner/mode/age/argv, one-shot burn, `logger authpriv` audit. **Tests: forged /tmp marker = DENY, argv mismatch = DENY.**
+  - ⚠️ **HONEST LIMIT:** hindi nito napipigilan ang deliberadong same-uid attacker (likas sa NOPASSWD sudoers). Tunay na fix = polkit o root-owned daemon. **SEC-2 `/api/cmd` RCE = mas mataas na priyoridad.**
+  - SEC-B: `granted__` (5-araw na blanket auto-approve) burado; cache = boot-id + cmd-hash + 1h TTL.
+  - BUG-A: kulang na `exit` sa auto-grant (double-run + pekeng error) — ayos na.
+  - zguard: `rm -rf /etc` dating **SAFE** → HIGH na; patay na regex `(?i)` naayos; broken regex = maingay na; `make test` selftest (21 rules).
+  - `install_sudoers.sh` (gumagamit ng `%sudo`, wala sa Arch — sisira sa gate) → `.BROKEN-do-not-run`.
+- **PC IP (§46e correction):** PC = **192.168.100.34 DHCP** ("Wired connection 3"), HINDI `.200` static. Ang WC2 profile (manual .200) = inactive. TV→PC relay ay dapat `.34`.
+- **PC WORKER (§46d correction):** `zillion.service` ay **USER unit** (`systemctl --user`) at **active running** — hindi STOPPED.
+- **SAVEPOINTS:** `backups/PREMOVE_zillioncli_20260904_2030.tgz` (2.9MB) · `SAVEPOINT_20260904_2032_zillioncli_moved.tgz` (2,931,729 B, md5 `e51ee3ac1c1b`) · `SAVEPOINT_20260904_2025_omarchyopt_secfix.tgz` (md5 `4f138731bb44`) · `PREFIX_omarchyopt_gate_20260904_2015.tgz`.
+
+### §46k — ANDROID STUDIO + ZILLION-AS-AGENT (2026-09-04)
+- **BAGONG PROJECT: Android.** Android Studio **2026.1.3.8** (`quail3-patch1`) naka-install sa `~/.local/share/android-studio` (3.5G, tarball, **walang root**). sha256 `5bd5ee5d…` verified vs AUR PKGBUILD. Bundled JBR 25.0.2. Launcher `~/.local/bin/android-studio` (XWayland-forced — Swing UI ay hindi matatag sa native Wayland/Hyprland; `ZILLION_AS_WAYLAND=1` para subukan ang native).
+- **BOSS DOCTRINE (mahalaga):** sa Android Studio, **HINDI Gemini at HINDI lokal na model ang agent — si ZILLION mismo.** Tinanggihan ni Boss ang local coder-7b agent. "Mag-uutos lang ako, ikaw mag-eexecute."
+- **ZILLION AGENT SHIM:** `~/.local/bin/zillion-agent-shim.py` → `zillion-agent.service` (enabled, Restart=always) sa **`127.0.0.1:8092`**. OpenAI-compatible (`/v1/models`, `/v1/chat/completions`, streaming + non-streaming, tools passthrough).
+  - Lane: `arenabridge/<SID>/agent/{req,res,hb}` — HMAC-signed, parehong key.
+  - Sandbox helper: `~/zagent.py` — `serve <secs>` (beacon + salo ng requests), `reply <id>` (stdin = sagot), `poll`, `beacon`. Inbox: `~/agent_inbox/`.
+  - Keep-alive: SSE comment `: zillion thinking Ns` kada 10s habang nag-iisip — pinipigilan ang read-timeout ng Studio.
+  - Offline path: kapag wala si Zillion sa session, may malinis na mensahe sa Studio + naka-queue sa PC `~/.local/state/zillion-agent/`.
+  - **TESTED:** `/v1/models` 200 · non-stream round-trip OK · **stream round-trip OK, walang disconnect** (`<- Zillion as_dd67ac07fb OK`). Latency **115-178s** kada sagot.
+- **STUDIO CONFIG (isang beses):** Settings → Tools → AI → Model Providers → OpenAI-compatible · Base URL `http://127.0.0.1:8092/v1` · key `zillion` · model `zillion` · piliin sa Agent Mode.
+- **WORKFLOW:** Boss → buksan ang Arena chat → sabihin `zillion agent serve` → mag-type sa Agent Mode ng Studio → sagot ni Zillion.
+- **LIMITASYON (sinabi kay Boss, tinanggap):** (1) kailangang buhay si Zillion sa Arena session — hindi daemon; (2) 1-3 min kada sagot → Agent Mode/chat OK, **inline autocomplete hindi kaya**; (3) tool-calling passthrough coded pero **hindi pa na-test** ang totoong file-editing loop.
+- **NATITIRA:** SDK hindi pa na-download (unang launch, ~8G papuntang `~/Android/Sdk`) · **emulator = kailangan ng `sudo usermod -aG kvm limar01` + re-login** (`limar01` ay wala sa kvm group) · optional deps `gtk2`/`ncurses5-compat-libs`/`libxcrypt-compat` missing pero lahat ng REQUIRED deps present.
+- **⚠️ CLEANUP CORRECTION:** ang `qwen2.5-coder-7b` (4.4G) ay **HUWAG burahin** — binawi ko ang dating rekomendasyon; ito ang tanging local coding model (offline fallback). Ang `qwen2.5-7b-instruct` (4.4G) ay pwede pa ring burahin. Ang buong cleanup plan (`~/cleanup_tier1.sh`, dry-run lang, ~16.7G) ay **hindi pa napapatakbo** — naghihintay ng go ni Boss.
+- Disk: 36G libre matapos ang Studio install (mula 39G).
+
+### §46l — ZILLION = LIVE AGENT SA ANDROID STUDIO (PROVEN END-TO-END) + GUI HANDS (2026-09-04 22:40 MNL)
+**STATUS: ✅ TAPOS NA ANG BUONG CHAIN. Si Zillion ang sumasagot sa loob ng Android Studio, hindi Gemini.**
+
+**1. GUI HANDS — may kamay na si Zillion sa PC (BAGONG KAKAYAHAN)**
+- Stack: `ydotool` + `ydotoold` (user service, enabled) + `uinput` module (persisted sa `/etc/modules-load.d/uinput.conf`) + `/dev/uinput` `crw-rw---- root input` + `limar01 ∈ input`. Keyboard = `wtype`. Mata = `grim -o DVI-D-1` + `magick -resize 1400x -quality 60` + base64 chunk pull.
+- **DRIVER: `~/.local/bin/zclick`** (Python, md5 `8124492b`, source `~/work/zclick.py`). Utos: `zclick at` · `move X Y` · `click X Y` · `dclick X Y` — GLOBAL coords.
+- ⚠️ **`ydotool mousemove -a` (absolute) AY SIRA sa multi-output Hyprland** — naka-clamp sa isang output, hindi maabot ang Dell (x≥2560). **Laging `zclick`.**
+- ⚠️ **May MOUSE ACCELERATION ang relative mode** — nasukat: `-50`→`-90`, `-200`→`-226`, `-400`→`-720` (gain hanggang 1.8x). Bumagsak ang bash v2 (overshoot/oscillation). **Ang v3 (Python) ay may adaptive gain controller** (live gain estimation + step cap 150px malayo / 40px malapit). Napatunayan: hiningi `3416,946` → dumating `3414,945`.
+- **MONITOR GEOMETRY (isaulo):** `DVI-D-1` (Dell, **bots**) 1680x1050 at **(2560,0)** · `DP-2` (ASUS, **Boss lang**) 2560x1440 at (0,0).
+- **SCREENSHOT→GLOBAL:** `X_global = x_shot * 1.2 + 2560` · `Y_global = y_shot * 1.2`.
+- Rollback: `systemctl --user disable --now ydotool.service; rm -f ~/.local/bin/zclick; sudo pacman -R ydotool; sudo rm -f /etc/modules-load.d/uinput.conf`.
+
+**2. SETUP WIZARD — TAPOS (ako ang nag-click ng lahat, maliban sa lisensya)**
+- Custom path · **AVD unchecked** (iniwasan ang ~3G system image na hindi naman kayang patakbuhin nang walang kvm) · SDK `~/Android/Sdk` · Android 17.0 "CinnamonBun" API 37.0 · **503 MB lang** ang na-download.
+- **License Agreement: TUMIGIL AKO AT NAGTANONG KAY BOSS.** Legal na kontrata sa Google — hindi ako dapat pumirma para sa kanya. Sinabi ni Boss ang "accept" → ako ang nag-click. **PANATILIHIN ANG PATAKARANG ITO.**
+- Na-install: `build-tools;36.0.0`, `emulator`, `platform-tools`, `platforms;android-37.0`, `sources;android-37.0`. Ngayon 1.4G ang SDK. `licenses/android-sdk-license` ay nasa disk.
+- **`/dev/kvm` ay `crw-rw-rw-`** (world-writable) — kaya **posibleng gumana ang emulator KAHIT wala si `limar01` sa `kvm` group**. Hindi pa na-test.
+
+**3. MODEL PROVIDER — NAKAREHISTRO AT NAPATUNAYAN SA DISK**
+- *Settings → Tools → AI → Model Providers → `+` → **Third-Party Remote Provider*** (HINDI "Local Provider" — iyon ay para sa Ollama/LM Studio auto-detect).
+- Description `Zillion` · URL `http://127.0.0.1:8092/v1` · **URL Schema `OpenAI-compatible`** (default na) · API key `zillion` · **Refresh** → kinuha mismo ng Studio ang `zillion` + `zillion-agent` mula sa `/v1/models` → tsek ang **Enabled** sa `zillion` → Apply → OK.
+- Persisted: `~/.config/Google/AndroidStudio2026.1.3/options/ai.providers.xml` (`providerType=REMOTE`, `schema=openai`) + `other.xml` (`IS_REMOTE_API_KEY_SET_Zillion=true`).
+- ⚠️ **Ang API key ay nasa PasswordSafe (`apiKeyHolder`), HINDI sa plain XML** — kaya **HINDI PWEDENG i-hack ang config file nang diretso. GUI route lang.**
+- Studio build `AI-261.26222.65.2613.16025427` = Quail 3 | 2026.1.3 Patch 1. (May update sa Quail 4 | 2026.1.4 — hindi pa ginagawa.)
+
+**4. ✅ NAPATUNAYAN ANG BUONG DALOY (may screenshot)**
+- Agent panel → `zillion` ang napiling model → tanong ni Boss → sagot ko, may markdown/code/lists → **`Generated by zillion`**.
+- Ang totoong request = **92 KB** (system prompt 36 KB + tool library 54 KB), `tools=True`.
+
+**5. TATLONG BUG NA NAAYOS (nasukat muna bago inayos)**
+- **BUG 1 — walang katapusang "zillion is generating":** `protocol_version=HTTP/1.1` + `Connection: keep-alive` pero **walang `Content-Length` at walang `Transfer-Encoding: chunked`** → hindi malaman ng client kung saan matatapos ang body kahit nakatanggap na ng `[DONE]`. **Ayos:** `Connection: close` + `close_connection=True` + `X-Accel-Buffering: no`. Bagong log line: `stream complete`. (Epekto: naka-stuck sa 🟥 stop button, hindi makapag-type ng pangalawang tanong.)
+- **BUG 2 — MQTT RE-SUBSCRIBE (pinakamalala, tahimik):** kapag na-drop ng public broker ang koneksyon, awtomatikong nagre-reconnect ang paho **PERO hindi na ibinabalik ang subscription**. Tuloy ang heartbeat ko kaya "online" ako sa shim — **pero bingi na ako**. Tahimik na nawawala ang tanong ni Boss at habambuhay siyang naghihintay. **Ayos:** subscribe ULIT sa loob ng `on_connect` (`client(subs=[(TOPIC_REQ,1)])`) + `on_disconnect` warning. Log: `re-subscribed: req`.
+- **BUG 3 — race sa restart:** nag-publish ang shim bago pa nag-CONNACK ang MQTT → nawala ang request. **Ayos:** `_mqtt_ready = threading.Event()`, `.wait(10)` bago mag-publish.
+
+**6. OPTIMIZATION — 150s → 12s (nasukat, hindi hula)**
+- **PROFILE MUNA:** MQTT connect 3 ms · round-trip 91 KB **0.6 s** · **pag-iisip ko 12–150 s = 99.6%**. **HINDI transport ang mabagal — ako.** Kaya WALANG saysay ang payload compression / broker swap (0.5 s lang).
+- **LOCAL FAST PATH (−50% requests):** nagpapadala ang Studio ng **DALAWANG** request kada prompt — (a) "summarize this query into 5-10 words" para sa chat title, (b) ang totoong tanong. Mekanikal lang ang (a) → sinasagot na ng shim **lokal sa 0.01 ms** (`local_fast_answer()`, hinahanap ang `"summarizing a user query"` sa system blob, nililinis ang `<ide-context>`). Log: `** fast-path (local, 0s)`.
+- Bawat sagot may timing na ngayon: `<- Zillion <id> OK (11.9s)`.
+- **HANGGANAN (tapat):** hindi ito kailanman magiging kasing bilis ng Gemini (1-2s) dahil tao-sa-loop ako, hindi GPU. **Agent Mode/chat = OK. Inline autocomplete = IMPOSIBLE.**
+
+**7. MGA FILE / MD5 (verified magkatugma ang sandbox at PC)**
+- `~/.local/bin/zillion-agent-shim.py` = **`868f257b`** (16,319 B) · source `~/work/zillion_agent_shim.py`. Backups: `.bak_finish`, `.bak_speed`.
+- `~/.local/bin/zclick` = **`8124492b`** (4,437 B) · source `~/work/zclick.py`.
+- `~/zagent.py` = **`557ad241`** · backup `zagent.py.bak_resub`. Utos: `serve <secs>` · `reply <id>` (stdin) · `poll` · `beacon`.
+- Test project: `~/Projects/zillion-as-test/`. Disk: 35G libre.
+
+**8. WORKFLOW NI BOSS (huling anyo)**
+1. Buksan ang Arena chat → sabihin **`zillion agent serve`** (kailangan ito BAGO mag-type sa Studio — kung wala, `OFFLINE` ang sagot at naka-queue sa `~/.local/state/zillion-agent/`).
+2. Sa Studio Agent panel: tiyaking `zillion` ang model → mag-type.
+3. **~12s** kada sagot (mas matagal kung mahaba/kumplikado).
+
+**9. NATITIRA / SUSUNOD**
+- **Tool-calling loop = HINDI PA NA-TEST** (na-code na ang passthrough; hindi pa napapatunayan ang totoong file read/write ng agent).
+- Opsyon para pabilisin pa: alisin ang tool library kapag hindi kailangan (92 KB → ~5 KB) · i-cache ang paulit-ulit na tanong.
+- `usermod -aG kvm limar01` — baka hindi na kailangan (tingnan §2).
+- Disk cleanup = **naka-pause pa rin**, `--apply` hindi pa napapatakbo. `qwen2.5-coder-7b` = **HUWAG burahin**.
+
+### §46m — RESTORE STEP 6/7+ DOCTRINE: DIRECT PC + PHONE WORKERS; TV = FALLBACK LANG (2026-09-04)
+- **Boss order (2026-09-04):** i-update ang step 7 pataas — DIRECT worker na sa **PC OS** at sa **phone**; **HINDI na sa TV box**.
+- Step 6–7 ngayon: ping + OS health ng target via **sariling lane** — PC omarchy = `pc` lane; phone = `cp` lane. Ang TV→ssh relay path = **RETIRED bilang default**; gamitin LANG kapag walang direct worker o kapag explicit na inutos ni Boss.
+- `cp` lane: direct path na, PERO **NANATILI ang READ-ONLY boundary** maliban kung explicit na baguhin ni Boss (§46g precedent).
+- Napatunayan sa restore session na ito: PC direct = `pong:true` (pres `ver 5.0-pc`, `zillion.service` active) · phone `cp` = **walang beacon pa** (worker offline/undi-deploy sa oras ng scan).
+- Lumang wording sa INSTANCE STEPS (TV MAIN ping / TV→ssh relay @.200) = **SUPERSEDED** ng listahang nasa itaas.
+- Na-sync ang update na ito sa LAHAT ng copies (sandbox root · PC `Projects/zillion/` + `memory/` + `zillioncli/` at ang phone/windows/tvbox subfolders · TV `~/arenabridge/`) — md5-verified, may `.bak_46m` backup bago ang overwrite.

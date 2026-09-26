@@ -165,9 +165,9 @@ class GenerationQueue:
         self.quota_manager: QuotaManager | None = None
         self.repair_engine = RepairEngine(session)
 
-    def set_provider(self, provider_name: str) -> None:
+    def set_provider(self, provider_name: str, provider_config: dict | None = None) -> None:
         """Set the active provider (e.g. 'mock' or 'snapgen')."""
-        config = get_config("providers", f"{provider_name}") or {}
+        config = provider_config or (get_config("providers", f"{provider_name}") or {})
         self.provider = create_provider(provider_name, config)
         self.quota_manager = QuotaManager(self.session, self.provider)
 
@@ -211,6 +211,27 @@ class GenerationQueue:
             job.state = JobState.READY
         self.session.commit()
         return len(jobs)
+
+    def poll_queue(self) -> int:
+        """Unblock BLOCKED jobs when the provider session becomes ready."""
+        if not self.provider:
+            return 0
+        if not self.provider.check_session():
+            return 0
+        jobs = self.session.exec(
+            select(GenerationJob).where(
+                GenerationJob.state == JobState.BLOCKED,
+            )
+        ).all()
+        unblocked = 0
+        for job in jobs:
+            job.state = JobState.READY
+            job.error_reason = None
+            unblocked += 1
+        if unblocked:
+            self.session.commit()
+            logger.info("Unblocked %d jobs — provider session ready", unblocked)
+        return unblocked
 
     def submit_job(self, job_id: str) -> GenerationJob:
         """Submit a generation job to the provider."""

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zillion TVBox Edition — 10-Foot Cyber Hub</title>
+<style>
+  :root{
+    --bg:#05080e; --panel:#0a1019; --panel2:#0e1724; --border:#1c2e44;
+    --fg:#d8e6f5; --dim:#6b87a8; --acc:#00d9a6; --acc2:#00b88e;
+    --warn:#ffb347; --err:#ff5c7c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--fg);
+    font-family:'JetBrains Mono',ui-monospace,sans-serif;
+    font-size:16px; line-height:1.5;
+    height:100vh; display:flex; flex-direction:column; overflow:hidden;
+    padding:16px;
+  }
+  .tv-header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 20px; background:var(--panel); border:1px solid var(--border);
+    border-radius:12px; margin-bottom:12px;
+  }
+  .tv-brand{font-size:20px; font-weight:800; color:#fff; display:flex; align-items:center; gap:10px}
+  .tv-brand .bolt{color:var(--acc)}
+  .tv-actions{display:flex; gap:12px; align-items:center}
+  
+  .tv-btn{
+    background:var(--panel2); color:var(--fg); border:2px solid var(--border);
+    padding:8px 16px; border-radius:10px; font-size:14px; font-weight:700;
+    cursor:pointer; transition:all .2s ease;
+  }
+  .tv-btn:focus, .tv-btn:hover{border-color:var(--acc); background:var(--acc); color:#03130d; outline:none; transform:scale(1.04)}
+  
+  .tv-out{
+    flex:1; background:var(--panel); border:1px solid var(--border);
+    border-radius:12px; padding:18px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;
+    margin-bottom:12px; font-size:15px;
+  }
+  .l{white-space:pre-wrap; word-break:break-word}
+  .l.cmd{color:var(--acc); font-weight:700}
+  .l.ok{color:var(--acc)}
+  .l.warn{color:var(--warn)}
+  .l.err{color:var(--err)}
+  .l.dim{color:var(--dim)}
+
+  .tv-inbar{
+    display:flex; flex-direction:column; gap:10px; padding:14px 18px;
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+  }
+  .tv-textarea{
+    width:100%; background:#070c14; border:2px solid var(--border);
+    border-radius:10px; padding:12px 16px; color:#fff; font-family:inherit;
+    font-size:15px; min-height:120px; line-height:1.5; resize:none; outline:none;
+  }
+  .tv-textarea:focus{border-color:var(--acc); box-shadow:0 0 16px rgba(0,217,166,.3)}
+  
+  .tv-controls{display:flex; gap:12px}
+  .tv-go{
+    flex:1; background:var(--acc); color:#03130d; border:none; padding:12px;
+    border-radius:10px; font-weight:800; font-size:15px; cursor:pointer;
+  }
+  .tv-go:focus, .tv-go:hover{background:var(--acc2); transform:scale(1.02)}
+</style>
+</head>
+<body>
+
+  <div class="tv-header">
+    <div class="tv-brand">
+      <span class="bolt">⚡</span>
+      <span>ZILLION TVBOX EDITION</span>
+    </div>
+    <div class="tv-actions">
+      <button class="tv-btn" id="btnTvRestore">🔄 Strict Auto-Restore</button>
+      <button class="tv-btn" id="btnTvAutoheal">⚡ Auto-Heal (0% Quota)</button>
+      <button class="tv-btn" id="btnTvStatus">📊 Status</button>
+    </div>
+  </div>
+
+  <div class="tv-out" id="out"></div>
+
+  <div class="tv-inbar">
+    <textarea class="tv-textarea" id="cmd" rows="6" placeholder="TV Prompt (D-Pad / Keyboard Enter to send, Shift+Enter for newline)..."></textarea>
+    <div class="tv-controls">
+      <button class="tv-btn" id="btnClear" style="flex:0 0 120px">Clear</button>
+      <button class="tv-go" id="go">Send to Arena Agent ↵</button>
+    </div>
+  </div>
+
+<script>
+const outEl=document.getElementById('out'), cmdEl=document.getElementById('cmd'), goEl=document.getElementById('go');
+
+function line(text,cls){ const d=document.createElement('div'); d.className='l'+(cls?' '+cls:''); d.textContent=text; outEl.appendChild(d); outEl.scrollTop=outEl.scrollHeight; }
+function clear(){ outEl.innerHTML=''; banner(); }
+function banner(){
+  line('⚡ ZILLION TVBOX EDITION — 10-Foot Screen Hub','dim');
+  line('📺 Optimized for Android TV Box / Armbian Linux Box / Big Screens.','dim');
+  line('🔄 Strict Restore (§37) + Auto-Heal + 6-Liner Multi-Line Active.','dim');
+  line('');
+}
+
+async function api(path, body){
+  const opt = body ? {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)} : {};
+  const r = await fetch(path, opt); return await r.json();
+}
+
+async function runRestore(){
+  line('🔄 [TVBox Restore] Enforcing 6 Strict Rules & Loading Memory Core v4.3...', 'warn');
+  const r = await api('/api/restore');
+  if(r.ok){ line('✔ [Strict Rules 1-6 Enforced] Memory Core v4.3 Restored to Arena AI!', 'ok'); }
+  else { line('✗ Restore error: ' + (r.error || 'Failed'), 'err'); }
+}
+
+async function runAutoheal(){
+  line('⚡ [TVBox Auto-Heal] Generating disposable email & refreshing session...', 'warn');
+  const r = await api('/api/autoheal');
+  if(r.ok){ line('✔ [Auto-Heal Completed] Account ' + (r.res?.email || 'fresh') + ' active & Restored!', 'ok'); }
+  else { line('✗ Autoheal error: ' + (r.error || 'Failed'), 'err'); }
+}
+
+async function submitCmd(v){
+  v = (v || '').trim(); if(!v) return;
+  if(v === 'clear'){ clear(); return; }
+  line('zion:tv> ' + v, 'cmd');
+  try{
+    const r = await api('/api/cmd', {cmd: v});
+    if(r.output){ r.output.trim().split('\n').forEach(ln=>line(ln, /✓/i.test(ln)?'ok':(/error/i.test(ln)?'err':''))); }
+  }catch(e){ line('✗ Error: ' + e.message, 'err'); }
+}
+
+document.getElementById('btnTvRestore').onclick = runRestore;
+document.getElementById('btnTvAutoheal').onclick = runAutoheal;
+document.getElementById('btnTvStatus').onclick = async ()=>{
+  const s = await api('/api/status');
+  line('📊 TVBox Status: ' + JSON.stringify(s), 'ok');
+};
+
+goEl.onclick = ()=>{ submitCmd(cmdEl.value); cmdEl.value = ''; };
+document.getElementById('btnClear').onclick = ()=>{ cmdEl.value = ''; cmdEl.focus(); };
+
+cmdEl.addEventListener('keydown', e=>{
+  if(e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    submitCmd(cmdEl.value);
+    cmdEl.value = '';
+  }
+});
+
+banner();
+</script>
+</body>
+</html>

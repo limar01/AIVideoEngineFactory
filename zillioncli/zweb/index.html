@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zillion Web — zion CLI</title>
+<style>
+:root{
+  --bg:#0a0b0f; --panel:#101218; --panel2:#161923; --line:#232735;
+  --txt:#e7e9ef; --dim:#8a90a2; --acc:#22d3ee; --ok:#6ee7b7; --err:#fca5a5;
+  --mono:'SFMono-Regular',ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:radial-gradient(1200px 600px at 72% -12%,#12233f 0%,var(--bg) 56%);
+  color:var(--txt);font:15px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+header{display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--line);
+  position:sticky;top:0;background:rgba(10,11,15,.82);backdrop-filter:blur(8px);z-index:5}
+.logo{font-weight:800;letter-spacing:.5px;font-size:17px}
+.logo .z{color:var(--acc)}
+.logo .thin{color:var(--dim);font-weight:500;font-size:12px;margin-left:9px}
+#pill{margin-left:auto;font:600 12px var(--mono);padding:5px 11px;border-radius:20px;border:1px solid var(--line);
+  color:var(--dim);cursor:pointer;user-select:none;white-space:nowrap}
+#pill.on{background:#0b2b1f;border-color:#14532d;color:var(--ok)}
+#pill.off{background:#2b0f12;border-color:#7f1d1d;color:var(--err)}
+#banner{display:none;padding:10px 18px;font:12.5px/1.5 var(--mono);background:#2b1d08;border-bottom:1px solid #7c4a03;color:#fbbf24}
+.wrap{display:grid;grid-template-columns:340px 1fr;height:calc(100vh - 55px)}
+aside{border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--panel);min-height:0}
+main{display:flex;flex-direction:column;min-width:0}
+.phead{padding:11px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;
+  font:600 11px var(--mono);color:var(--dim);text-transform:uppercase;letter-spacing:1.2px}
+.phead .grow{flex:1}
+button{font:600 13px inherit;color:#071018;background:var(--acc);border:0;border-radius:8px;padding:8px 13px;cursor:pointer}
+button.ghost{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+button:hover{filter:brightness(1.12)}
+.openrow{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.openrow input{flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:8px 10px;font:12.5px var(--mono)}
+.out{flex:1;overflow:auto;margin:0;padding:12px 14px;font:12.5px/1.55 var(--mono);color:#c9cede;white-space:pre-wrap;word-break:break-word}
+#chat{flex:1;overflow:auto;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:80%;padding:9px 13px;border-radius:14px;font-size:14px;white-space:pre-wrap;word-break:break-word}
+.msg .who{font:700 10px var(--mono);letter-spacing:1px;opacity:.72;display:block;margin-bottom:3px}
+.you{align-self:flex-end;background:linear-gradient(135deg,#0e7490,#155e75);border-bottom-right-radius:4px}
+.arena{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);border-bottom-left-radius:4px}
+.inputbar{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);background:var(--panel)}
+.inputbar input{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--txt);padding:11px 13px;font:14px inherit}
+.inputbar input:focus{outline:none;border-color:var(--acc)}
+.hint{padding:5px 16px 10px;font:11px var(--mono);color:var(--dim)}
+@media(max-width:760px){.wrap{grid-template-columns:1fr;height:auto}aside{max-height:44vh;border-right:0;border-bottom:1px solid var(--line)}#chat{min-height:52vh}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">⚡ <span class="z">ZILLION</span> WEB<span class="thin">zion CLI · web</span></div>
+  <div id="pill" title="click to run: zion status">● checking…</div>
+</header>
+<div id="banner"></div>
+<div class="wrap">
+  <aside>
+    <div class="phead">Sessions · zion ls</div>
+    <div class="openrow">
+      <input id="openSid" placeholder="open &lt;sid&gt; …">
+      <button class="ghost" id="btnRefresh">ls</button>
+      <button class="ghost" id="btnOpen">open</button>
+    </div>
+    <pre class="out" id="lsOut">Press “ls” to list sessions (zion ls).
+Click the top-right pill to run “zion status”.</pre>
+  </aside>
+  <main>
+    <div class="phead">Chat · zion send <span class="grow"></span><span id="statusOut" style="text-transform:none"></span></div>
+    <div id="chat">
+      <div class="msg arena"><span class="who">ARENA</span>Zillion Web loaded. It is the web front-end of your `zion` CLI (§34).
+Connect the local backend, then type a message below — it runs `zion send "<msg>"` and echoes the Arena AI response with no focus steal.</div>
+    </div>
+    <div class="inputbar">
+      <input id="msg" placeholder='zion send "<message>" …' autocomplete="off">
+      <button id="btnSend">Send ↵</button>
+    </div>
+    <div class="hint">zion CLI · send / ls / open / status — MEMORY_CORE §34 · localhost-only backend</div>
+  </main>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const pill=$('#pill'),banner=$('#banner'),chat=$('#chat'),lsOut=$('#lsOut'),
+      msgIn=$('#msg'),openIn=$('#openSid'),statusOut=$('#statusOut');
+function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function addMsg(cls,who,txt){const d=document.createElement('div');d.className='msg '+cls;
+  d.innerHTML='<span class="who">'+who+'</span>'+esc(txt);chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d;}
+async function api(path,opts){try{const r=await fetch(path,opts);const t=await r.text();return{net:true,status:r.status,text:t};}
+  catch(e){return{net:false,status:0,text:String(e)};}}
+function parse(t){try{return JSON.parse(t);}catch(e){return{ok:true,stdout:t};}}
+function textOf(j){return ((j.stdout||'')+(j.stderr?('  [stderr] '+j.stderr):'')).trim();}
+function setBackend(on,raw){
+  pill.className=on?'on':'off';pill.textContent=on?'● online':'● offline';
+  if(!on){banner.style.display='block';
+    banner.textContent='Backend offline — this web UI needs the local server. On the Omarchy PC run:   python3 zweb.py   then open   http://127.0.0.1:8791   (requires the `zion` binary + probe browser on :9222).';}
+  else banner.style.display='none';
+  if(raw){try{const j=parse(raw);statusOut.textContent=(textOf(j).split('\n')[0]||'').slice(0,90);}catch(e){}}
+}
+async function checkBackend(){
+  const h=await api('/api/health');let ok=false;
+  if(h.net&&h.status===200){try{ok=JSON.parse(h.text).ok===true;}catch(e){ok=false;}}
+  if(ok){setBackend(true);const s=await api('/api/status');if(s.net&&s.status===200)setBackend(true,s.text);}
+  else setBackend(false);
+}
+async function doSend(){const m=msgIn.value.trim();if(!m)return;msgIn.value='';
+  addMsg('you','YOU',m);const w=addMsg('arena','ARENA','…');
+  const r=await api('/api/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({msg:m})});
+  w.lastChild.textContent=r.net?(textOf(parse(r.text))||'(empty)'):'❌ backend offline';}
+async function doLS(){const r=await api('/api/sessions?limit=30');
+  lsOut.textContent=r.net?(textOf(parse(r.text))||'(empty)'):'❌ backend offline';}
+async function doOpen(){const sid=openIn.value.trim();
+  if(!sid){lsOut.textContent='type a sid to open (zion open <sid>)';return;}
+  const r=await api('/api/session/'+encodeURIComponent(sid));
+  lsOut.textContent=r.net?(textOf(parse(r.text))||'(empty)'):'❌ backend offline';}
+async function doStatus(){const r=await api('/api/status');setBackend(r.net&&r.status===200,r.text);
+  statusOut.textContent=r.net?(textOf(parse(r.text)).split('\n').slice(0,2).join(' · ')):'❌ backend offline';}
+$('#btnSend').onclick=doSend;$('#btnRefresh').onclick=doLS;$('#btnOpen').onclick=doOpen;pill.onclick=doStatus;
+msgIn.addEventListener('keydown',e=>{if(e.key==='Enter')doSend();});
+openIn.addEventListener('keydown',e=>{if(e.key==='Enter')doOpen();});
+checkBackend();
+</script>
+</body>
+</html>

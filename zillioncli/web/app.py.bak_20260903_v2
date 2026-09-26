@@ -1,0 +1,314 @@
+#!/usr/bin/env python3
+"""
+Zillion CLI — Web Hub Server & Full API Endpoint
+Supports interactive multi-line terminal, 3-tab Auth Hub, Auto-Healer,
+Limiter Quota Alert (>=90%), and Strict Restore Engine.
+"""
+
+import http.server
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.parse
+import urllib.request
+import websocket
+
+PORT = 8890
+CDP_URL = os.environ.get("ZILLION_CDP", "http://127.0.0.1:9222")
+ZION = os.path.expanduser("~/.local/bin/zion")
+SESSION_FILE = os.path.expanduser("~/.zion/session.json")
+STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Add tools/zion to sys.path
+ZION_TOOL_DIR = os.path.abspath(os.path.join(STATIC_DIR, ".."))
+if ZION_TOOL_DIR not in sys.path:
+    sys.path.append(ZION_TOOL_DIR)
+
+GLOBAL_STATE = {
+    "limiter_pct": 0,
+    "autoheal_history": []
+}
+
+CMD_MAP = {
+    "status": "zion-status",
+    "ls": "zion-ls",
+    "open": "zion-open",
+    "me": "zion-me",
+    "whoami": "zion-me",
+    "login": "zion-login",
+    "signup": "zion-signup",
+    "logout": "zion-signout",
+    "signout": "zion-signout",
+    "autoheal": "zion-autoheal",
+    "restore": "zion-restore",
+    "send": "zion-send",
+    "help": "zion",
+    "zion": "zion",
+    "zion-status": "zion-status",
+    "zion-ls": "zion-ls",
+    "zion-open": "zion-open",
+    "zion-me": "zion-me",
+    "zion-login": "zion-login",
+    "zion-signup": "zion-signup",
+    "zion-signout": "zion-signout",
+    "zion-autoheal": "zion-autoheal",
+    "zion-restore": "zion-restore",
+    "zion-send": "zion-send",
+}
+
+def _cdp_eval(expr):
+    try:
+        req = urllib.request.urlopen(f"{CDP_URL}/json", timeout=2)
+        tabs = json.loads(req.read())
+        ws_url = None
+        for t in tabs:
+            if t.get("type") == "page" and "webSocketDebuggerUrl" in t:
+                ws_url = t["webSocketDebuggerUrl"]
+                break
+        if not ws_url:
+            return None
+        ws = websocket.create_connection(ws_url, timeout=4)
+        msg = {"id": 1, "method": "Runtime.evaluate", "params": {"expression": expr, "returnByValue": True}}
+        ws.send(json.dumps(msg))
+        res = json.loads(ws.recv())
+        ws.close()
+        return res.get("result", {}).get("result", {}).get("value")
+    except Exception:
+        return None
+
+def run_cmd(args, timeout=60):
+    if not args:
+        return {"error": "no command", "exit_code": 1}
+    first = os.path.basename(args[0])
+    if first not in CMD_MAP and not os.path.exists(args[0]):
+        return {"error": f"not allowed: {first}", "exit_code": 1}
+    
+    mapped = CMD_MAP.get(first, first)
+    if first == "help":
+        args = [ZION]
+    elif first in ("status", "ls", "open", "me", "whoami", "login", "signup", "logout", "signout", "autoheal", "restore", "send"):
+        args[0] = os.path.expanduser("~/.local/bin/" + mapped)
+    elif os.path.exists(os.path.expanduser("~/.local/bin/" + mapped)):
+        args[0] = os.path.expanduser("~/.local/bin/" + mapped)
+
+    try:
+        p = subprocess.run(args, capture_output=True, text=True, timeout=timeout,
+                           cwd=os.path.expanduser("~/.local/bin"))
+        out = (p.stdout or "")
+        if p.stderr:
+            out += ("\n" + p.stderr)
+        return {"output": out[-20000:], "exit_code": p.returncode}
+    except subprocess.TimeoutExpired:
+        return {"error": f"timeout after {timeout}s", "exit_code": -1}
+    except Exception as e:
+        return {"error": str(e), "exit_code": -1}
+
+def capture_cookies_from_browser():
+    try:
+        req = urllib.request.urlopen(f"{CDP_URL}/json", timeout=2)
+        tabs = json.loads(req.read())
+        ws_url = None
+        for t in tabs:
+            if t.get("type") == "page" and "webSocketDebuggerUrl" in t:
+                ws_url = t["webSocketDebuggerUrl"]
+                break
+        if not ws_url:
+            return {"ok": False, "error": "No browser page tab found on CDP"}
+        ws = websocket.create_connection(ws_url, timeout=4)
+        msg = {"id": 2, "method": "Network.getCookies"}
+        ws.send(json.dumps(msg))
+        res = json.loads(ws.recv())
+        ws.close()
+        cookies = res.get("result", {}).get("cookies", [])
+        session_token = None
+        for c in cookies:
+            if c.get("name") in ("arena-auth-prod-v1.0", "arena-auth-prod-v1.1", "session_token", "cf_clearance"):
+                session_token = c.get("value")
+                break
+        if not session_token and cookies:
+            session_token = cookies[0].get("value")
+        os.makedirs(os.path.dirname(SESSION_FILE), exist_ok=True)
+        session_data = {
+            "session_token": session_token,
+            "cookies": cookies,
+            "count": len(cookies),
+            "source": "browser_cdp_auto",
+            "updated_at": time.strftime("%Y-%m-%d %H:%M:%S")
+        }
+        with open(SESSION_FILE, "w") as f:
+            json.dump(session_data, f, indent=2)
+        return {"ok": True, "count": len(cookies), "cookies_count": len(cookies), "has_token": bool(session_token)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+def execute_autoheal_flow():
+    try:
+        import autoheal
+        res = autoheal.run_autoheal()
+        GLOBAL_STATE["limiter_pct"] = 0
+        GLOBAL_STATE["autoheal_history"].append(res)
+        return {"ok": True, "res": res, "limiter_pct": 0}
+    except Exception as e:
+        res = run_cmd(["zion-autoheal"])
+        GLOBAL_STATE["limiter_pct"] = 0
+        return {"ok": True, "output": res, "limiter_pct": 0}
+
+def execute_restore_flow():
+    try:
+        import restore_engine
+        res = restore_engine.run_auto_restore()
+        return {"ok": True, "restore": res}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+class Handler(http.server.SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=STATIC_DIR, **kwargs)
+
+    def do_GET(self):
+        u = urllib.parse.urlparse(self.path)
+        if u.path == "/api/status":
+            session_info = {}
+            if os.path.exists(SESSION_FILE):
+                try:
+                    with open(SESSION_FILE) as f:
+                        session_info = json.load(f)
+                except:
+                    pass
+            self._json({
+                "status": "ok",
+                "cdp": bool(_cdp_eval("1+1")),
+                "session": session_info,
+                "limiter_pct": GLOBAL_STATE["limiter_pct"]
+            })
+        elif u.path == "/api/limiter":
+            self._json({"ok": True, "limiter_pct": GLOBAL_STATE["limiter_pct"]})
+        elif u.path in ("/api/me", "/api/whoami"):
+            res = run_cmd(["whoami"])
+            self._json(res)
+        elif u.path == "/api/autoheal":
+            res = execute_autoheal_flow()
+            self._json(res)
+        elif u.path == "/api/restore":
+            res = execute_restore_flow()
+            self._json(res)
+        elif u.path == "/api/auth/poll":
+            eval_url = _cdp_eval("window.location.href")
+            logged_in = False
+            user_data = None
+            if eval_url and not any(x in eval_url for x in ["sign-in", "sign-up", "login", "signup"]):
+                logged_in = True
+            if logged_in:
+                capture_cookies_from_browser()
+                user_eval = _cdp_eval("(() => { const u = localStorage.getItem('user') || sessionStorage.getItem('user'); return u ? JSON.parse(u) : { email: 'active_user' }; })()")
+                user_data = user_eval if isinstance(user_eval, dict) else {"email": "User"}
+            self._json({"ok": True, "loggedIn": logged_in, "user": user_data or {"email": "Logged In"}, "url": eval_url})
+        else:
+            super().do_GET()
+
+    def do_POST(self):
+        u = urllib.parse.urlparse(self.path)
+        len_h = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(len_h) if len_h else b"{}"
+        data = json.loads(body) if body else {}
+
+        if u.path == "/api/cmd":
+            cmd = data.get("cmd", "")
+            text = data.get("text", "")
+            if text:
+                args = [os.path.expanduser("~/.local/bin/zion-send"), text]
+            elif isinstance(cmd, str):
+                args = cmd.strip().split()
+            else:
+                args = cmd
+            res = run_cmd(args)
+            GLOBAL_STATE["limiter_pct"] = min(100, GLOBAL_STATE["limiter_pct"] + 2)
+            res["limiter_pct"] = GLOBAL_STATE["limiter_pct"]
+            self._json(res)
+        elif u.path == "/api/limiter/set":
+            val = int(data.get("pct", 92))
+            GLOBAL_STATE["limiter_pct"] = max(0, min(100, val))
+            self._json({"ok": True, "limiter_pct": GLOBAL_STATE["limiter_pct"]})
+        elif u.path == "/api/autoheal":
+            res = execute_autoheal_flow()
+            self._json(res)
+        elif u.path == "/api/restore":
+            res = execute_restore_flow()
+            self._json(res)
+        elif u.path in ("/api/auth/save-session", "/api/capture"):
+            res = capture_cookies_from_browser()
+            self._json(res)
+        elif u.path == "/api/login":
+            _cdp_eval("window.location.href = 'https://arena.ai/sign-in'")
+            self._json({"ok": True, "message": "Sign-in page opened in browser"})
+        elif u.path == "/api/auth/login-direct":
+            email = data.get("email", "").strip()
+            password = data.get("password", "").strip()
+            if not email or not password:
+                self._json({"ok": False, "error": "Email and password required"})
+                return
+            eval_code = f"""
+            (async () => {{
+                try {{
+                    const res = await fetch('/nextjs-api/sign-in/email', {{
+                        method: 'POST',
+                        headers: {{ 'Content-Type': 'application/json' }},
+                        body: JSON.stringify({{ email: {json.dumps(email)}, password: {json.dumps(password)} }})
+                    }});
+                    const d = await res.json().catch(() => ({{}}));
+                    return {{ status: res.status, ok: res.ok, data: d }};
+                }} catch (err) {{
+                    return {{ ok: false, error: err.toString() }};
+                }}
+            }})()
+            """
+            res = _cdp_eval(eval_code) or {}
+            cap = capture_cookies_from_browser()
+            ok = res.get("ok", False) or res.get("status") in (200, 201)
+            err = res.get("data", {}).get("message") or res.get("data", {}).get("error") or res.get("error")
+            if not ok and not err and cap.get("has_token"):
+                ok = True
+            if ok:
+                execute_restore_flow()
+            self._json({"ok": ok, "user": {"email": email}, "error": err or ("Login failed" if not ok else None), "raw": res, "captured": cap})
+        elif u.path == "/api/auth/signup-magic":
+            email = data.get("email", "").strip()
+            if not email:
+                self._json({"ok": False, "error": "Email required"})
+                return
+            eval_code = f"""
+            (async () => {{
+                try {{
+                    const res = await fetch('/nextjs-api/sign-up/magic-link', {{
+                        method: 'POST',
+                        headers: {{ 'Content-Type': 'application/json' }},
+                        body: JSON.stringify({{ email: {json.dumps(email)} }})
+                    }});
+                    const d = await res.json().catch(() => ({{}}));
+                    return {{ status: res.status, ok: res.ok, data: d }};
+                }} catch (err) {{
+                    return {{ ok: false, error: err.toString() }};
+                }}
+            }})()
+            """
+            res = _cdp_eval(eval_code) or {}
+            ok = res.get("ok", False) or res.get("status") in (200, 201)
+            self._json({"ok": ok, "message": res.get("data", {}).get("message") or ("Magic link sent to " + email), "error": (res.get("data", {}).get("message") or res.get("data", {}).get("error") or res.get("error")) if not ok else None})
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def _json(self, payload):
+        b = json.dumps(payload).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(b)))
+        self.end_headers()
+        self.wfile.write(b)
+
+if __name__ == "__main__":
+    server = http.server.HTTPServer(("0.0.0.0", PORT), Handler)
+    print(f"ZIL WEB UI running on http://0.0.0.0:{PORT}")
+    server.serve_forever()

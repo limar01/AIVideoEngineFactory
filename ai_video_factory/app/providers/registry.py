@@ -101,9 +101,22 @@ def create_provider(
             user_agent=provider_config.get("user_agent"),
         )
 
+    if provider_name == "meta-ai-browser":
+        from app.providers.meta_ai_browser import MetaAIBrowserProvider
+
+        return MetaAIBrowserProvider(
+            download_dir=provider_config.get(
+                "download_dir", "~/Data/meta-ai-downloads"
+            ),
+            cookie_jar_path=provider_config.get(
+                "cookie_jar_path", "~/.meta-ai-cookies.json"
+            ),
+            cdp_port=provider_config.get("cdp_port", 9228),
+        )
+
     raise ValueError(
         f"Unknown provider: '{provider_name}'. "
-        "Use 'mock', 'snapgen', 'snapgen-pool', 'google-flow', or 'meta-vibes'."
+        "Use 'mock', 'snapgen', 'snapgen-pool', 'google-flow', 'meta-vibes', or 'meta-ai-browser'."
     )
 
 

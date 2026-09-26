@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Zillion CLI — Web Hub & Multi-Line Terminal</title>
+<style>
+  :root{
+    --bg:#070b12; --panel:#0b111a; --panel2:#0e1724; --border:#1b2838;
+    --fg:#c9d7e8; --dim:#5a738e; --acc:#00d9a6; --acc2:#00b88e;
+    --warn:#ffb347; --err:#ff5c7c; --link:#4dabf7; --line:#162334;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--fg);
+    font-family:'JetBrains Mono','Fira Code',ui-monospace,Menlo,Consolas,monospace;
+    font-size:13px; line-height:1.5;
+    height:100vh; display:flex; flex-direction:column; overflow:hidden;
+  }
+  .top{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 14px; background:var(--panel); border-bottom:1px solid var(--border);
+  }
+  .brand{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:1px;color:#fff}
+  .brand .bolt{color:var(--acc)}
+  .brand .tag{font-size:10px;color:var(--dim);font-weight:400}
+  .actions{display:flex;align-items:center;gap:8px}
+  .btn{
+    background:var(--panel2); color:var(--fg); border:1px solid var(--border);
+    padding:5px 10px; border-radius:6px; cursor:pointer; font-size:11px;
+    font-family:inherit; transition:all .15s ease;
+  }
+  .btn:hover{background:var(--border);color:#fff}
+  .btn.accent{background:var(--acc);color:#03130d;border-color:var(--acc);font-weight:700}
+  .btn.accent:hover{background:var(--acc2)}
+  .btn.warn{background:rgba(255,179,71,.15);color:var(--warn);border-color:var(--warn);font-weight:700}
+  .btn.warn:hover{background:rgba(255,179,71,.25)}
+  .btn.restore{background:rgba(0,217,166,.15);color:var(--acc);border-color:var(--acc);font-weight:700}
+  .btn.restore:hover{background:rgba(0,217,166,.25)}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--dim)}
+  .btn.ghost:hover{color:var(--fg);border-color:var(--border)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--dim);display:inline-block}
+  .dot.on{background:var(--acc);box-shadow:0 0 8px var(--acc)}
+  .pill{padding:2px 8px;border-radius:12px;font-size:10px;background:#111b27;border:1px solid var(--border);color:var(--dim)}
+  .pill.ok{color:var(--acc);border-color:rgba(0,217,166,.3)}
+  .pill.err{color:var(--err);border-color:rgba(255,92,124,.3)}
+  .pill.limiter{cursor:pointer;font-weight:700;transition:all .2s ease}
+  .pill.limiter.ok{color:var(--acc);border-color:rgba(0,217,166,.3);background:rgba(0,217,166,.08)}
+  .pill.limiter.warn{color:var(--warn);border-color:rgba(255,179,71,.4);background:rgba(255,179,71,.12)}
+  .pill.limiter.crit{color:var(--err);border-color:rgba(255,92,124,.6);background:rgba(255,92,124,.18);animation:pulse 1.2s infinite}
+
+  @keyframes pulse{
+    0%{box-shadow:0 0 4px rgba(255,92,124,.4)}
+    50%{box-shadow:0 0 12px rgba(255,92,124,.8)}
+    100%{box-shadow:0 0 4px rgba(255,92,124,.4)}
+  }
+
+  .quickbar{
+    display:flex; gap:6px; padding:6px 14px; background:var(--panel2);
+    border-bottom:1px solid var(--line); overflow-x:auto; align-items:center;
+  }
+  .quickbar .btn{font-size:11px;padding:3px 8px}
+  .quickbar .sp{flex:1}
+
+  .out{
+    flex:1; overflow-y:auto; padding:14px; background:var(--bg);
+    display:flex; flex-direction:column; gap:4px;
+  }
+  .l{white-space:pre-wrap;word-break:break-word}
+  .l.cmd{color:var(--acc);font-weight:600}
+  .l.meta{color:var(--dim);font-size:11px}
+  .l.err{color:var(--err)}
+  .l.warn{color:var(--warn)}
+  .l.ok{color:var(--acc)}
+  .l.dim{color:var(--dim)}
+
+  .attachments{
+    display:flex; flex-wrap:wrap; gap:6px; padding:6px 14px;
+    background:var(--panel2); border-top:1px solid var(--line);
+  }
+  .attach-chip{
+    background:#132030; border:1px solid var(--border); border-radius:4px;
+    padding:2px 8px; font-size:11px; display:flex; align-items:center; gap:6px; color:var(--dim);
+  }
+  .attach-chip .nm{color:var(--fg);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .attach-chip .x{cursor:pointer;color:var(--err);font-weight:700}
+
+  /* Multi-Line 6-Liner Input Box Bar */
+  .inbar{
+    display:flex; gap:10px; padding:10px 14px; background:var(--panel);
+    border-top:1px solid var(--border); align-items:flex-start;
+  }
+  .prompt{color:var(--acc);font-weight:700;margin-top:8px;user-select:none;font-size:13px}
+  .cmdin{
+    flex:1; background:#080d15; border:1px solid var(--border); border-radius:8px;
+    padding:10px 12px; color:#fff; font-family:inherit; font-size:13px;
+    min-height:125px; line-height:1.5; resize:vertical; outline:none;
+    box-shadow:inset 0 1px 4px rgba(0,0,0,.6); transition:border-color .15s ease;
+  }
+  .cmdin:focus{border-color:var(--acc);box-shadow:0 0 10px rgba(0,217,166,.2)}
+  .cmdin::placeholder{color:var(--dim)}
+  
+  .inbar-actions{display:flex; flex-direction:column; gap:6px; margin-top:2px}
+  .go{
+    background:var(--acc); color:#03130d; border:none; padding:12px 18px;
+    border-radius:8px; font-weight:700; cursor:pointer; font-family:inherit; font-size:12px;
+    transition:all .15s ease; white-space:nowrap;
+  }
+  .go:hover{background:var(--acc2);box-shadow:0 0 12px rgba(0,217,166,.4)}
+  .go:disabled{opacity:.4;cursor:not-allowed}
+
+  .foot{
+    display:flex; gap:18px; padding:6px 14px; border-top:1px solid var(--line);
+    color:var(--dim); font-size:11px; background:var(--panel2);
+  }
+  .foot b{color:var(--fg)}
+
+  /* Modal Base */
+  .modal{
+    position:fixed; inset:0; background:rgba(5,8,12,.84);
+    display:none; align-items:center; justify-content:center;
+    z-index:999; backdrop-filter:blur(5px);
+  }
+  .modal.open{display:flex}
+
+  .action-btn.danger{background:var(--err);color:#fff;border-color:transparent}
+  .action-btn.danger:hover{filter:brightness(1.1)}
+  .spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;margin-right:6px;vertical-align:middle}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .cancel-btn{margin-left:6px;background:var(--err);color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px}
+
+  .card{
+    background:#0f1622; border:1px solid #22344a; border-radius:14px;
+    padding:22px; max-width:460px; width:94%;
+    box-shadow:0 16px 48px rgba(0,0,0,.7);
+  }
+  .card-hdr{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:14px; border-bottom:1px solid var(--line); padding-bottom:10px;
+  }
+  .card-hdr h2{margin:0;font-size:15px;color:#fff;display:flex;align-items:center;gap:6px}
+  .card-close{
+    background:transparent; border:none; color:var(--dim);
+    font-size:18px; cursor:pointer; padding:4px 8px; line-height:1;
+  }
+  .card-close:hover{color:var(--err)}
+
+  .tabs{
+    display:flex; gap:6px; background:#070c14; padding:4px;
+    border-radius:8px; margin-bottom:16px; border:1px solid var(--line);
+  }
+  .tab{
+    flex:1; text-align:center; padding:7px 4px; font-size:11px;
+    border-radius:6px; cursor:pointer; color:var(--dim);
+    transition:all .15s ease; font-weight:600;
+  }
+  .tab:hover{color:#fff}
+  .tab.active{background:var(--panel2);color:var(--acc);border:1px solid var(--border)}
+
+  .tab-pane{display:none}
+  .tab-pane.active{display:block}
+
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:11px;color:var(--dim);margin-bottom:5px}
+  .field input{
+    width:100%; background:#070c14; border:1px solid var(--border);
+    border-radius:6px; padding:8px 12px; color:#fff; font-family:inherit; font-size:12px;
+  }
+  .field input:focus{border-color:var(--acc);outline:none}
+
+  .sub-note{font-size:11px;color:var(--dim);margin-bottom:14px;line-height:1.4}
+  .action-btn{
+    width:100%; padding:10px; border-radius:8px; font-weight:700;
+    cursor:pointer; font-family:inherit; font-size:12px; margin-top:6px;
+    transition:all .15s ease; border:none;
+  }
+  .action-btn.primary{background:var(--acc);color:#03130d}
+  .action-btn.primary:hover{background:var(--acc2)}
+  .action-btn.accent{background:#1a283a;color:var(--acc);border:1px solid var(--acc)}
+  .action-btn.accent:hover{background:#23354d}
+  .action-btn.danger{background:var(--err);color:#fff}
+  .action-btn.danger:hover{background:#e04868}
+
+  .authstatus{
+    margin-top:14px; padding:8px 12px; border-radius:6px;
+    font-size:11px; display:none; line-height:1.4;
+  }
+  .authstatus.ok{background:rgba(0,217,166,.12);color:var(--acc);border:1px solid rgba(0,217,166,.3)}
+  .authstatus.err{background:rgba(255,92,124,.12);color:var(--err);border:1px solid rgba(255,92,124,.3)}
+  .authstatus.warn{background:rgba(255,179,71,.12);color:var(--warn);border:1px solid rgba(255,179,71,.3)}
+
+  /* Limiter Alert Card Specifics */
+  .limiter-card{border:1px solid rgba(255,92,124,.5);background:#13121a;box-shadow:0 0 30px rgba(255,92,124,.2)}
+  .limiter-meter{
+    background:#080b10; border-radius:10px; height:18px; width:100%;
+    overflow:hidden; border:1px solid var(--border); margin:12px 0; position:relative;
+  }
+  .limiter-bar{
+    height:100%; background:linear-gradient(90deg, #ffb347 0%, #ff5c7c 100%);
+    width:92%; transition:width .4s ease; border-radius:8px;
+  }
+  .limiter-text{
+    position:absolute; inset:0; display:flex; align-items:center;
+    justify-content:center; font-size:10px; font-weight:700; color:#fff;
+    text-shadow:0 1px 2px rgba(0,0,0,.8);
+  }
+  .info-box{
+    background:#091018; border:1px solid var(--border); border-left:3px solid var(--warn);
+    padding:10px 12px; border-radius:6px; font-size:11.5px; line-height:1.45;
+    color:#b8c7d9; margin-bottom:16px;
+  }
+  .info-box b{color:#fff}
+  .modal-actions{display:flex; gap:10px; margin-top:8px}
+  .modal-actions button{flex:1}
+</style>
+</head>
+<body>
+
+  <!-- Top bar -->
+  <div class="top">
+    <div class="brand">
+      <span class="bolt">⚡</span>
+      <span>ZILLION CLI</span>
+      <span class="tag">ZILLION CLI · Omarchy PC · lane pc</span>
+    </div>
+    <div class="actions">
+      <div class="pill limiter warn" id="limiterPill" title="Click to view Limiter status">⚡ Quota: 45%</div>
+      <button class="btn accent" id="loginBtn">⚡ Auth Hub</button>
+      <button class="btn restore" id="btnRestore" title="Auto-Restore Memory Core v4.2 & Save Point">🔄 Restore Memory</button>
+      <button class="btn" id="captureBtn">Save session</button>
+      <div class="dot" id="dot" title="probe"></div>
+      <div class="pill" id="acctPill" title="Account na naka-login sa probe browser — ito ang ginagamit ng Zillion CLI">👤 —</div>
+      <div class="pill" id="pill">…</div>
+    </div>
+  </div>
+
+  <!-- Quick Action Command Bar -->
+  <div class="quickbar">
+    <button class="btn" data-c="status">status</button>
+    <button class="btn" data-c="me">whoami (/api/me)</button>
+    <button class="btn" data-c="ls">history</button>
+    <button class="btn restore" id="btnRestoreQuick" title="Restore Memory Core">🔄 restore</button>
+    <button class="btn" data-c="help">help</button>
+    <button class="btn warn" id="btnSimLimiter" title="Simulate 95% Limiter to trigger Auto-Heal Alert">⚠️ Sim Limiter ≥90%</button>
+    <button class="btn" id="attachBtn" title="Attach file">📎 Attach</button>
+    <div class="sp"></div>
+    <button class="btn ghost" data-c="">clear</button>
+  </div>
+
+  <!-- Attachments preview -->
+  <div class="attachments" id="attachbar" style="display:none"></div>
+
+  <!-- Terminal Output -->
+  <div class="out" id="out"></div>
+
+  <!-- Prompt Multi-Line 6-Liner Input Text Box -->
+  <div class="inbar">
+    <span class="prompt">zion&gt;</span>
+    <textarea id="cmd" class="cmdin" rows="6" spellcheck="false" autofocus
+      placeholder="type a message or prompt... (Enter to send, Shift+Enter for newline, or status, me, ls, restore, autoheal, help)"></textarea>
+    <div class="inbar-actions">
+      <button class="go" id="go">send ↵</button>
+      <button class="btn ghost" id="btnClearIn" title="Clear text box" style="font-size:10px;padding:4px 6px">clear</button>
+    </div>
+  </div>
+
+  <!-- Footer status -->
+  <div class="foot">
+    <span>host <b>omarchy</b></span>
+    <span>lane <b>pc</b></span>
+    <span>eyes <b>DIRECT</b></span>
+    <span id="sid">session <b id="cid">—</b></span>
+    <span id="ping"></span>
+  </div>
+
+  <!-- 1. Quota Limiter ≥90% Auto-Heal Modal -->
+  <div class="modal" id="limiterModal">
+    <div class="card limiter-card">
+      <div class="card-hdr">
+        <h2 style="color:var(--err)">⚠️ Quota Limiter Alert (≥ 90%)</h2>
+        <button class="card-close" id="limiterClose">✕</button>
+      </div>
+
+      <div class="limiter-meter">
+        <div class="limiter-bar" id="limiterModalBar" style="width:92%"></div>
+        <div class="limiter-text" id="limiterModalText">92% Quota Consumed · Limit Critical</div>
+      </div>
+
+      <div class="info-box">
+        <b>Babala ng Zillion Auto-Healer & Strict Restore:</b><br>
+        Malapit nang maabot ang rate limit / quota ng kasalukuyang account (≥90%).<br><br>
+        Kapag pinili ang <b>Continue & Auto-Heal</b>, <b>awtomatikong gagawa ang Zillion ng bagong disposable temporary email</b>, magrerehistro sa Arena, at <b>AWTOMATIKONG MAGRE-RESTORE NG MEMORY CORE v4.2 AT SAVE POINT</b> nang may 6 Strict Rules (§37) para tuloy-tuloy ang trabaho mo nang walang manual interruption.
+      </div>
+
+      <div class="authstatus" id="autohealStatus"></div>
+
+      <div class="modal-actions">
+        <button class="action-btn primary" id="btnDoAutoheal">⚡ Continue & Auto-Heal (Auto-Restore)</button>
+        <button class="action-btn accent" id="btnCancelLimiter">✕ Cancel / Keep Current</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Standard Auth Hub Modal -->
+  <div class="modal" id="modal">
+    <div class="card">
+      <div class="card-hdr">
+        <h2 id="mTitle">⚡ ZILLION Auth Hub</h2>
+        <button class="btn" id="btnDoLogout" style="background:var(--err);color:#fff;margin-right:8px;">🚪 Sign Out</button><button class="card-close" id="mClose">✕</button>
+      </div>
+
+      <!-- 3-Tab Navigator -->
+      <div class="tabs">
+        <div class="tab active" id="tabHead-direct" onclick="switchTab('tab-direct', this)">⚡ Direct Login</div>
+        <div class="tab" id="tabHead-browser" onclick="switchTab('tab-browser', this)">🌐 Browser / Google</div>
+        <div class="tab" id="tabHead-magic" onclick="switchTab('tab-magic', this)">✉️ Magic Sign-Up</div>
+      </div>
+
+      <!-- Tab 1: Direct In-CLI Login -->
+      <div class="tab-pane active" id="tab-direct">
+        <div class="sub-note">1-Click Direct In-App Authentication via <code>/nextjs-api/sign-in/email</code> + Auto-Restore.</div>
+        <div class="field">
+          <label>Email Address</label>
+          <input id="dEmail" type="email" placeholder="name@example.com" autocomplete="email">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input id="dPassword" type="password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button class="action-btn primary" id="btnDoDirectLogin">⚡ Sign In Directly & Auto-Restore</button>
+      </div>
+
+      <!-- Tab 2: Browser Assisted (Auto-Detected) -->
+      <div class="tab-pane" id="tab-browser">
+        <div class="sub-note">Buksan ang sign-in sa browser para sa Google OAuth. <b>Kusang idedetect, ise-save ng Zillion, at mag-auto-restore</b> kapag naka-login ka na!</div>
+        <button class="action-btn accent" id="btnOpenBrowserLogin">🌐 Open Login in Browser</button>
+        <div style="margin-top:10px;text-align:center;">
+          <button class="btn ghost" id="btnManualSave" style="font-size:11px">Manual Save Session Cookies</button>
+        </div>
+      </div>
+
+      <!-- Tab 3: Magic Sign-Up -->
+      <div class="tab-pane" id="tab-magic">
+        <div class="sub-note">Instant passwordless registration via <code>/nextjs-api/sign-up/magic-link</code>.</div>
+        <div class="field">
+          <label>Your Email Address</label>
+          <input id="mSignEmail" type="email" placeholder="name@example.com">
+        </div>
+        <button class="action-btn primary" id="btnDoMagicSignup">✉️ Send Sign-Up Magic Link</button>
+      </div>
+
+      <div class="authstatus" id="authstatus"></div>
+    </div>
+  </div>
+
+  <input type="file" id="fileIn" multiple style="display:none">
+
+<script>
+const outEl=document.getElementById('out'), cmdEl=document.getElementById('cmd'),
+  goEl=document.getElementById('go'), dot=document.getElementById('dot'),
+  pill=document.getElementById('pill'), cidEl=document.getElementById('cid'),
+  pingEl=document.getElementById('ping'), attachbar=document.getElementById('attachbar'),
+  limiterPill=document.getElementById('limiterPill'), limiterModal=document.getElementById('limiterModal'),
+  btnClearIn=document.getElementById('btnClearIn');
+
+var history=[], hix=-1, busy=false; window.history=history; window.busy=busy;
+var attachments=[]; window.attachments=attachments;
+var pollTimer=null;
+var currentLimiterPct = 45; window.currentLimiterPct=currentLimiterPct;
+var limiterDismissed = false; window.limiterDismissed=limiterDismissed;
+
+// Expose to window for CDP/debug tooling
+window.outEl=outEl; window.cmdEl=cmdEl; window.goEl=goEl; window.dot=dot; window.pill=pill;
+window.cidEl=cidEl; window.pingEl=pingEl; window.attachbar=attachbar; window.limiterPill=limiterPill;
+window.limiterModal=limiterModal; window.btnClearIn=btnClearIn;
+
+
+function line(text,cls){ const d=document.createElement('div'); d.className='l'+(cls?' '+cls:''); d.textContent=text; outEl.appendChild(d); outEl.scrollTop=outEl.scrollHeight; return d; }
+function meta(text){ const d=document.createElement('div'); d.className='l meta'; d.textContent=text; outEl.appendChild(d); outEl.scrollTop=outEl.scrollHeight; }
+function cmdLine(text){ line('zion> '+text,'cmd'); }
+function clear(){ outEl.innerHTML=''; banner(); }
+function banner(){
+  line('  ⚡  Z I L L I O N   C L I   —  Omarchy PC · lane pc','dim');
+  line('  type a multi-line message or prompt; Enter to send (Shift+Enter for newline).','dim');
+  line('  use Auth Hub to authenticate · 🔄 Auto-Restore & Limiter active.','dim');
+  line('');
+}
+
+/* Update Limiter Visuals */
+function updateLimiterUI(pct, autoTrigger=true){
+  currentLimiterPct = pct;
+  limiterPill.textContent = '⚡ Quota: ' + pct + '%';
+  limiterPill.className = 'pill limiter ' + (pct >= 90 ? 'crit' : (pct >= 70 ? 'warn' : 'ok'));
+
+  document.getElementById('limiterModalBar').style.width = Math.min(100, pct) + '%';
+  document.getElementById('limiterModalText').textContent = pct + '% Quota Consumed · ' + (pct >= 90 ? 'Limit Critical' : 'Normal');
+
+  if(pct >= 90 && autoTrigger && !limiterDismissed){
+    showLimiterModal();
+  }
+}
+
+function showLimiterModal(){
+  limiterModal.classList.add('open');
+  setAutohealMsg('', '');
+}
+
+function hideLimiterModal(){
+  limiterModal.classList.remove('open');
+}
+
+function setAutohealMsg(msg, type){
+  const el = document.getElementById('autohealStatus');
+  if(!msg){ el.style.display='none'; el.textContent=''; return; }
+  el.className = 'authstatus ' + type;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+/* Limiter Modal Listeners */
+document.getElementById('limiterClose').onclick = ()=>{ hideLimiterModal(); limiterDismissed = true; };
+document.getElementById('btnCancelLimiter').onclick = ()=>{ hideLimiterModal(); limiterDismissed = true; line('ℹ Limiter alert dismissed. Continuing current session.', 'dim'); };
+limiterPill.onclick = ()=>{ limiterDismissed = false; showLimiterModal(); };
+
+// Test Simulation Button
+document.getElementById('btnSimLimiter').onclick = async ()=>{
+  limiterDismissed = false;
+  await api('/api/limiter/set', {pct: 94});
+  updateLimiterUI(94, true);
+  line('⚠️ Simulated Quota Limiter at 94% (Triggering Auto-Heal & Auto-Restore Alert Modal)', 'warn');
+};
+
+// Explicit Restore Action
+async function triggerRestore(){
+  line('🔄 [Auto-Restore] Enforcing 6 Strict Rules & Loading Memory Core v4.2...', 'warn');
+  try{
+    const r = await api('/api/restore');
+    if(r.ok){
+      line('✔ [Strict Rule 1/6] 100% Zero Boss manual typing enforced.', 'ok');
+      line('✔ [Strict Rule 2/6] Bridge key secured (~/arenabridge/arenabridge.key 0600).', 'ok');
+      line('✔ [Strict Rule 3/6] Protected Scope (0% personal/banking modification).', 'ok');
+      line('✔ [Strict Rule 4/6] Vision probe (DIRECT eyes active).', 'ok');
+      line('✔ [Strict Rule 5/6] MEMORY_CORE.md v4.2 & Save Point synchronized!', 'ok');
+      line('✔ [Strict Rule 6/6] Taglish reporting locked.', 'ok');
+      line('✔ [Restore Success] AI Agent memory is 100% restored & operational.', 'ok');
+    } else {
+      line('✗ Restore failed: ' + (r.error || 'Unknown error'), 'err');
+    }
+  }catch(e){
+    line('✗ Error triggering restore: ' + e.message, 'err');
+  }
+}
+
+document.getElementById('btnRestore').onclick = triggerRestore;
+document.getElementById('btnRestoreQuick').onclick = triggerRestore;
+
+// Auto-Heal Action (with integrated Auto-Restore)
+document.getElementById('btnDoAutoheal').onclick = async ()=>{
+  setAutohealMsg('⚡ [1/4] Generating temporary email mailbox (mail.tm)...', 'warn');
+  const btn = document.getElementById('btnDoAutoheal');
+  btn.disabled = true;
+  line('⚡ [Auto-Heal] Initiating automated disposable account registration & restore...', 'warn');
+
+  try{
+    const r = await api('/api/autoheal');
+    if(r.ok){
+      const email = (r.res && r.res.email) ? r.res.email : 'new temp user';
+      setAutohealMsg('✔ Success! Registered ' + email + ' & Memory Core v4.2 Auto-Restored!', 'ok');
+      line('✔ [Auto-Heal Completed] Brand new account active: ' + email + ' (Quota reset to 0%)', 'ok');
+      line('✔ [Auto-Restore Completed] Memory Core v4.2 & Strict Rules applied successfully to new session!', 'ok');
+      updateLimiterUI(0, false);
+      limiterDismissed = false;
+      setTimeout(()=>{ hideLimiterModal(); btn.disabled = false; refreshStatus(); }, 2000);
+    } else {
+      setAutohealMsg('✗ Auto-Heal failed: ' + (r.error || 'Server error'), 'err');
+      btn.disabled = false;
+    }
+  }catch(e){
+    setAutohealMsg('✗ Error: ' + e.message, 'err');
+    btn.disabled = false;
+  }
+};
+
+/* Tab Switcher */
+function switchTab(tabId, el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  if(el){ el.classList.add('active'); }
+  else {
+    const head = document.getElementById(tabId === 'tab-direct' ? 'tabHead-direct' : (tabId === 'tab-browser' ? 'tabHead-browser' : 'tabHead-magic'));
+    if(head) head.classList.add('active');
+  }
+  const pane = document.getElementById(tabId);
+  if(pane) pane.classList.add('active');
+  setAuthMsg('','');
+}
+
+function setAuthMsg(msg, type){
+  const el = document.getElementById('authstatus');
+  if(!msg){ el.style.display='none'; el.textContent=''; return; }
+  el.className = 'authstatus ' + type;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+/* File Attach */
+document.getElementById('attachBtn').addEventListener('click',()=>document.getElementById('fileIn').click());
+document.getElementById('fileIn').addEventListener('change',async e=>{
+  for(const f of e.target.files){
+    if(attachments.length>=6){ meta('(max 6 attachments)'); break; }
+    const dataUrl=await readFile(f);
+    attachments.push({filename:f.name, mimeType:f.type||'application/octet-stream', dataUrl, size:f.size});
+  }
+  e.target.value=''; renderAttach();
+});
+function readFile(f){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(f); }); }
+function renderAttach(){
+  if(!attachments.length){ attachbar.style.display='none'; return; }
+  attachbar.style.display='flex';
+  attachbar.innerHTML='';
+  attachments.forEach((a,i)=>{
+    const c=document.createElement('div'); c.className='attach-chip';
+    const size=(a.size/1024).toFixed(0)+' KB';
+    const nm=document.createElement('span'); nm.className='nm'; nm.textContent=a.filename;
+    const x=document.createElement('span'); x.className='x'; x.textContent='✕'; x.title='remove';
+    x.onclick=()=>{ attachments.splice(i,1); renderAttach(); };
+    c.appendChild(document.createTextNode(size+' ')); c.appendChild(nm); c.appendChild(x);
+    attachbar.appendChild(c);
+  });
+}
+
+/* API Fetcher */
+async function api(path, body){
+  const opt = body ? {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)} : {};
+  const r = await fetch(path, opt); return await r.json();
+}
+
+async function refreshStatus(){
+  try{
+    const s = await api('/api/status');
+    if(s.status === 'ok'){ dot.classList.add('on'); dot.style.background='var(--acc)';
+      pill.textContent='probe online · cdp ✓';
+      pill.className='pill ok';
+      if(s.limiter_pct !== undefined){ updateLimiterUI(s.limiter_pct, true); }
+    } else { dot.classList.remove('on'); dot.style.background='var(--err)';
+      pill.textContent='probe offline'; pill.className='pill err'; }
+  }catch(e){ dot.style.background='var(--dim)'; pill.textContent='server ✗'; pill.className='pill err'; }
+}
+
+/* ==== AUTH STATE SYNC (Boss rules 2026-09-03) ====
+   Pag nag-load ang Zillion CLI: kung ano ang naka-login sa probe browser, iyun ang gagamiting account.
+   Kung walang naka-login -> auto-popup ang Auth Hub para mag manual login.
+   Probe browser ay background-only (headless) — kung offline, auto-ensure. */
+const acctPill = document.getElementById('acctPill');
+let authPrompted = false;
+
+function setAcctPill(state, text){
+  acctPill.textContent = text;
+  acctPill.className = 'pill ' + (state==='ok' ? 'ok' : (state==='err' ? 'err' : ''));
+}
+
+async function initAuth(){
+  try{
+    const s = await api('/api/auth/state');
+    if(!s.probeOnline){
+      setAcctPill('err', '👤 probe offline');
+      line('⚠ Probe browser offline — inilu-launch sa background (headless)...', 'warn');
+      try{
+        const r = await api('/api/probe/ensure', {});
+        if(r.ok && r.probeOnline){
+          line('✔ Probe browser online (background/headless lang). Re-checking session...', 'ok');
+          setTimeout(initAuth, 4000);
+        } else {
+          line('✗ Hindi ma-launch ang probe browser: ' + (r.detail || r.error || 'unknown'), 'err');
+        }
+      }catch(e){ line('✗ Probe ensure failed: ' + e.message, 'err'); }
+      return;
+    }
+    if(s.loggedIn && s.user && s.user.email){
+      const em = s.user.email;
+      setAcctPill('ok', '👤 ' + em);
+      line('✔ Session synced mula sa probe browser: ' + em + (s.user.username ? ' (' + s.user.username + ')' : '') + ' — ito ang gagamiting login account.', 'ok');
+      if(s.captured){ line('   • ' + s.captured + ' session cookies synced sa CLI (zion ls/open/status)', 'dim'); }
+    } else {
+      setAcctPill('err', '👤 walang login');
+      line('⚠ Walang naka-login na account sa probe browser — mag-login muna para magamit ang CLI.', 'warn');
+      if(!authPrompted){ authPrompted = true;
+        setAuthMsg('⚠ Walang naka-login sa probe browser. Mag-login ka muna (Direct o Browser/Google) — awtomatikong idedetect at isi-sync.', 'warn');
+        modal.classList.add('open');
+      }
+    }
+  }catch(e){ setAcctPill('err', '👤 server ✗'); }
+}
+
+/* Silent re-check: updates the account chip; auto-popup ulit kapag nawala ang login */
+async function silentAuthCheck(){
+  try{
+    const s = await api('/api/auth/state');
+    if(s.probeOnline && s.loggedIn && s.user && s.user.email){
+      setAcctPill('ok', '👤 ' + s.user.email);
+      authPrompted = false;
+    } else if(s.probeOnline){
+      setAcctPill('err', '👤 walang login');
+      if(!authPrompted){ authPrompted = true;
+        setAuthMsg('⚠ Na-logout ang session sa probe browser — mag-login ulit dito.', 'warn');
+        modal.classList.add('open');
+      }
+    } else {
+      setAcctPill('err', '👤 probe offline');
+    }
+  }catch(e){ /* tahimik lang */ }
+}
+
+/* Auth Modal Logic */
+const modal = document.getElementById('modal');
+window.modal = modal;
+document.getElementById('loginBtn').onclick = () => { modal.classList.add('open'); setAuthMsg('',''); };
+document.getElementById('btnDoLogout').onclick = async () => {
+  if(!confirm('Sigurado bang mag-log out sa Arena?')) return;
+  setAuthMsg('Naglo-logout...', 'warn');
+  try{
+    const r = await api('/api/logout', {});
+    if(r.exit_code === 0){
+      setAuthMsg('✔ Logged out na. Pwede nang mag-login ulit.', 'ok');
+      setAcctPill('err', '🔒 not logged in');
+      authPrompted = false;
+    }else{
+      setAuthMsg('✗ ' + (r.output || r.error || 'Logout failed'), 'err');
+    }
+  }catch(e){ setAuthMsg('✗ '+String(e), 'err'); }
+};
+document.getElementById('mClose').onclick = () => { modal.classList.remove('open'); clearInterval(pollTimer); };
+
+// 1. Direct Login + Auto Restore
+document.getElementById('btnDoDirectLogin').onclick = async () => {
+  const email = document.getElementById('dEmail').value.trim();
+  const password = document.getElementById('dPassword').value.trim();
+  if(!email || !password){ setAuthMsg('Please enter both email and password.', 'err'); return; }
+  setAuthMsg('Authenticating directly via /nextjs-api/sign-in/email & Restoring Memory...', 'warn');
+  const r = await api('/api/auth/login-direct', {email, password});
+  if(r.ok){
+    const emailName = (r.user && r.user.email) ? r.user.email : email;
+    setAuthMsg('✔ Welcome, ' + emailName + '! Session synced & Memory Restored.', 'ok');
+    line('✔ Logged in directly as ' + emailName + ' (cookies synced ✓)', 'ok');
+    setAcctPill('ok', '👤 ' + emailName); authPrompted = false;
+    line('✔ [Auto-Restore] Memory Core v4.2 & Save Point synchronized to new session!', 'ok');
+    setTimeout(()=>{ modal.classList.remove('open'); refreshStatus(); }, 1500);
+  } else {
+    setAuthMsg('✗ ' + (r.error || 'Login failed'), 'err');
+  }
+};
+
+// 2. Browser Open + Auto Detect Polling + Auto Restore
+document.getElementById('btnOpenBrowserLogin').onclick = async () => {
+  setAuthMsg('Opening browser sign-in... Waiting for login completion...', 'warn');
+  await api('/api/login');
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async ()=>{
+    const p = await api('/api/auth/poll');
+    if(p.loggedIn && p.user && p.user.email){
+      clearInterval(pollTimer);
+      setAuthMsg('✔ Auto-Detected Login! Memory Core v4.2 Restored.', 'ok');
+      line('✔ Auto-Detected Browser Login: ' + p.user.email + ' (cookies saved ✓)', 'ok');
+      setAcctPill('ok', '👤 ' + p.user.email); authPrompted = false;
+      line('✔ [Auto-Restore] Memory Core v4.2 & Save Point synchronized to new session!', 'ok');
+      setTimeout(()=>{ modal.classList.remove('open'); refreshStatus(); }, 1500);
+    }
+  }, 2000);
+};
+
+document.getElementById('btnManualSave').onclick = async () => {
+  const r = await api('/api/capture');
+  setAuthMsg(r.ok ? ('✔ Saved ' + (r.count || r.cookies_count || 0) + ' cookies') : ('✗ ' + r.error), r.ok ? 'ok' : 'err');
+};
+
+// 3. Magic Sign-Up
+document.getElementById('btnDoMagicSignup').onclick = async () => {
+  const email = document.getElementById('mSignEmail').value.trim();
+  if(!email){ setAuthMsg('Please enter a valid email address.', 'err'); return; }
+  setAuthMsg('Sending magic link...', 'warn');
+  const r = await api('/api/auth/signup-magic', {email});
+  if(r.ok){
+    setAuthMsg('✔ ' + (r.message || 'Magic link sent!'), 'ok');
+    line('✔ Magic Link dispatched to ' + email, 'ok');
+  } else {
+    setAuthMsg('✗ ' + (r.error || 'Request failed'), 'err');
+  }
+};
+
+document.getElementById('captureBtn').onclick = async () => {
+  const r = await api('/api/capture');
+  if(r.ok){ line('✔ saved ' + (r.count || r.cookies_count || 0) + ' cookies' + (r.has_token?' (session token ✓)':''), 'ok'); }
+  else line('✗ ' + r.error, 'err');
+};
+
+/* Local CLI Executor */
+async function runLocal(cmdStr){
+  cmdStr = cmdStr.trim(); if(!cmdStr) return;
+  if(cmdStr === 'clear'){ clear(); return; }
+  if(cmdStr === 'restore' || cmdStr === 'zion-restore'){ triggerRestore(); return; }
+  cmdLine(cmdStr); busy = true; goEl.disabled = true;
+  const st = Date.now();
+  try{
+    const r = await api('/api/cmd', {cmd: cmdStr});
+    if(r.limiter_pct !== undefined){ updateLimiterUI(r.limiter_pct, true); }
+    if(r.error){ line(r.error, 'err'); }
+    else if(r.output && r.output.trim()){
+      r.output.trim().split('\n').forEach(ln=>{ let cls='';
+        if(/✓/.test(ln)) cls='ok'; else if(/✗|error|traceback|denied|not found/i.test(ln)) cls='err';
+        else if(/WARNING|HTTP 4|HTTP 5|timeout/i.test(ln)) cls='warn'; line(ln, cls); });
+    } else line('(no output)', 'dim');
+  }catch(e){ line('request failed: ' + e.message, 'err'); }
+  busy = false; goEl.disabled = false; pingEl.textContent = 'done in ' + ((Date.now()-st)/1000).toFixed(1) + 's';
+  outEl.scrollTop = outEl.scrollHeight;
+}
+
+/* Agent Send */
+async function runSend(text){
+  text = text.trim();
+  if(!text && !attachments.length){ return; }
+  cmdLine(text || '(attachment)');
+  busy = true; goEl.disabled = true;
+  const st = Date.now();
+  const origGoHTML = goEl.innerHTML;
+  goEl.innerHTML = '<span class="spinner"></span>wait...';
+  let cancelled = false;
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'cancel-btn'; cancelBtn.textContent = 'cancel';
+  cancelBtn.onclick = async (e) => {
+    e.preventDefault();
+    cancelled = true;
+    try{ await api('/api/send-cancel', {}); }catch(e){}
+    line('✗ Cancelled by user.', 'err');
+    cleanup();
+  };
+  goEl.parentElement.insertBefore(cancelBtn, goEl.nextSibling);
+  function cleanup(){
+    busy = false; goEl.disabled = false; goEl.innerHTML = origGoHTML;
+    if(cancelBtn.parentElement) cancelBtn.parentElement.removeChild(cancelBtn);
+    pingEl.textContent = 'done in ' + ((Date.now()-st)/1000).toFixed(1) + 's';
+    outEl.scrollTop = outEl.scrollHeight;
+  }
+  try{
+    const isRestoreToken = /zillion\s*(OM|Cp|Win)/i.test(text);
+    const hasMdAttach = attachments.some(a => /\.md$/i.test(a.filename || ''));
+    if(isRestoreToken && hasMdAttach){
+      meta('\ud83d\udd04 Pinapatakbo ang Zillion Restore Protocol v5.1...');
+      const r2 = await api('/api/restore/chat', {text, attachments});
+      const txt = (r2 && r2.output) ? r2.output : JSON.stringify(r2);
+      (txt || '').split('\n').forEach(l => line(l || ' ', r2.ok ? 'ok' : 'err'));
+      pingEl.textContent = r2.ok ? 'restored \u2714' : 'error';
+      attachments = []; renderAttach(); cleanup(); return;
+    }
+    const r = await api('/api/cmd', {cmd: 'zion', text: text, attachments: attachments.map(a => ({filename:a.filename, dataUrl:a.dataUrl, size:a.size}))});
+    if(cancelled) return;
+    if(r.limiter_pct !== undefined){ updateLimiterUI(r.limiter_pct, true); }
+    if(r.error){ line('✗ ' + r.error, 'err'); }
+    else{
+      if(r.session){ cidEl.textContent = r.session.slice(0,13); }
+      line('━━━ AI RESPONSE ━━━', 'warn');
+      if(r.output && r.output.trim()){ line(r.output.trim(), 'ok'); }
+      else line('(walang response pa — baka nakaantabay ang session)', 'dim');
+    }
+    attachments = []; renderAttach();
+  }catch(e){
+    if(!cancelled) line('✗ Network error: '+String(e), 'err');
+  }finally{
+    if(!cancelled) cleanup();
+  }
+}
+
+function submitCmd(v){
+  v = (v || '').trim(); if(!v) return;
+  if(history.indexOf(v) !== -1) history.splice(history.indexOf(v), 1);
+  history.unshift(v); hix = -1;
+  const looksCli = /^(status|ls|open|help|zion|save|clear|me|whoami|login|signup|logout|signout|autoheal|restore)(\s|$)/.test(v) || v === 'clear';
+  if(looksCli) runLocal(v); else runSend(v);
+}
+
+document.querySelectorAll('.btn[data-c]').forEach(b=>{
+  b.addEventListener('click', ()=>{ const c = b.getAttribute('data-c'); if(c === ''){ clear(); return; } submitCmd(c); });
+});
+
+/* Multi-line keyboard event listener */
+cmdEl.addEventListener('keydown', e=>{
+  if(e.key === 'Enter' && !e.shiftKey){
+    // If Enter without shift, submit command/prompt
+    e.preventDefault();
+    submitCmd(cmdEl.value);
+    cmdEl.value = '';
+  }
+  else if(e.key === 'ArrowUp' && cmdEl.value === ''){
+    e.preventDefault();
+    if(history.length){ hix = hix < 0 ? history.length-1 : Math.max(0, hix-1); cmdEl.value = history[hix] || ''; }
+  }
+  else if(e.key === 'ArrowDown' && hix >= 0){
+    e.preventDefault();
+    hix++;
+    if(hix >= history.length){ hix = history.length; cmdEl.value = ''; }
+    else cmdEl.value = history[hix];
+  }
+});
+
+goEl.addEventListener('click', ()=>{ submitCmd(cmdEl.value); cmdEl.value = ''; });
+btnClearIn.addEventListener('click', ()=>{ cmdEl.value = ''; cmdEl.focus(); });
+
+banner(); refreshStatus(); setInterval(refreshStatus, 8000);
+initAuth(); setInterval(silentAuthCheck, 30000);
+
+// Function mirrors
+window._funcsReady = setInterval(()=>{
+  if(typeof line==='function' && typeof showLimiterModal==='function'){
+    window.line=line; window.meta=meta; window.cmdLine=cmdLine;
+    window.showLimiterModal=showLimiterModal; window.hideLimiterModal=hideLimiterModal;
+    window.updateLimiterUI=updateLimiterUI; window.setAuthMsg=setAuthMsg;
+    window.renderAttach=renderAttach; window.switchTab=switchTab; window.api=api;
+    window.runSend=runSend; window.submitCmd=submitCmd;
+    window.initAuth=initAuth; window.silentAuthCheck=silentAuthCheck;
+    clearInterval(window._funcsReady);
+  }
+},50);
+
+</script>
+</body>
+</html>

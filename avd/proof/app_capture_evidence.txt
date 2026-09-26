@@ -1,0 +1,31 @@
+APP CAPTURE EVIDENCE — 2026-09-26 (zillion_root_avd, Android 16, rooted)
+=======================================================================
+Device-wide capture: HTTP proxy 10.0.2.2:8080 + MITM CA mounted in all 67 mount
+namespaces. No app was modified — every app's HTTP(S) goes through the same pipe.
+
+Third-party app under test: Wikipedia (org.wikipedia 50606), installed from F-Droid.
+
+Traffic captured from that app on first launch:
+  16:00:49  GET  200  meta.wikimedia.org/w/api.php?action=streams...      (8662 B)
+  16:00:49  GET  200  en.wikipedia.org/api/rest_v1/feed/configuration      (893 B)
+  16:00:49  GET  200  en.wikipedia.org/api/rest_v1/feed/featured/2026/09/26?lang=en (59 385 B)
+  16:00:49  GET  200  en.wikipedia.org/api/rest_v1/feed/onthisday/events/9/26 (49 282 B)
+  16:00:50  POST 202  intake-analytics.wikimedia.org/v1/events?hasty=true  body 1515 B  <-- decrypted
+  16:01:19  POST 202  intake-analytics.wikimedia.org/v1/events?hasty=true  body  769 B  <-- decrypted
+Also captured from Google services the app used:
+  16:00:49  POST 200  infinitedata-pa.googleapis.com/mdi.InfiniteData/Lookup body incl. "org.wikipedia"
+  16:00:49  POST 200  digitalassetlinks.googleapis.com/.../Check          body incl. https://wikipedia.org + org.wikipedia cert fingerprint
+
+Excerpt of the decrypted analytics POST body (truncated):
+[{"$schema":"/analytics/product_metrics/app/base/2.0.0","instrument_name":"apps-open",
+  "agent":{"app_flavor":"fdroidrelease","app_version_name":"WikipediaApp/r/50606-r-2026-09-09",
+           "client_platform":"android","device_family":"google sdk_gphone64_x86_64"},
+  "performer":{"is_logged_in":false,"session_id":"1fa06222225c340c69f8"},
+  "action":"app_open","action_subtype":"MainActivity"}]
+
+Limits (measured / documented):
+  * Cert-pinned apps refuse the CA -> only hostnames (net_proxy.sh hosts) — not
+    exercised on this device, stated from Android/HTTP behaviour.
+  * QUIC/UDP bypasses an HTTP proxy entirely.
+  * Private/loopback URLs are not proxied.
+  * Capture requires the PC's mitmdump to be running.

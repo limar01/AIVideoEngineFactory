@@ -13,6 +13,8 @@ import sqlite3
 import time
 from typing import Any, Optional
 
+from app.providers.generation_config import GenerationConfig
+
 from playwright.sync_api import Page, sync_playwright
 
 logger = logging.getLogger(__name__)
@@ -53,18 +55,31 @@ def load_ff_cookies() -> list[dict[str, Any]]:
 class GoogleFlowDriver:
     """Drives the persistent workspace-8 Chrome via CDP."""
 
-    def __init__(self, cdp_port: int = CDP_PORT, download_dir: str = DL_DIR):
+    def __init__(self, cdp_port: int = CDP_PORT, download_dir: str = DL_DIR,
+                 page=None, cdp=None, config: GenerationConfig | None = None):
         self.cdp_port = cdp_port
         self.download_dir = download_dir
+        self.config = config or GenerationConfig.pinoy_kanto_defaults()
         os.makedirs(self.download_dir, exist_ok=True)
         self._pw = None
         self._browser = None
-        self._page: Optional[Page] = None
-        self._cdp = None
+        self._page: Optional[Page] = page
+        self._cdp = cdp
 
     # -- lifecycle ---------------------------------------------------------
     def connect(self) -> bool:
-        """Connect to the persistent Chrome. Returns False if not running."""
+        """Connect to the persistent Chrome. Returns False if not running.
+        If page and cdp are already provided (reusing provider's session),
+        skip the Playwright connect and just verify the page is valid.
+        """
+        if self._page is not None and self._cdp is not None:
+            # Reusing provider's existing Playwright session — just verify page
+            try:
+                self._page.evaluate("1 + 1")
+                return True
+            except Exception as exc:
+                logger.error("page verification failed: %s", exc)
+                return False
         try:
             self._pw = sync_playwright().start()
             self._browser = self._pw.chromium.connect_over_cdp(
@@ -85,13 +100,17 @@ class GoogleFlowDriver:
             return False
 
     def close(self) -> None:
+        # Don't tear down the shared Playwright session when reusing provider's page
+        if self._pw is None and self._browser is None:
+            return
         try:
-            if self._browser:
+            if self._browser and self._page is None:
+                # Only close browser if we created it fresh (page is None means we didn't reuse)
                 self._browser.close()
         except Exception:
             pass
         try:
-            if self._pw:
+            if self._pw and self._page is None:
                 self._pw.stop()
         except Exception:
             pass
@@ -159,9 +178,19 @@ class GoogleFlowDriver:
         return None
 
     # -- settings ----------------------------------------------------------
-    def set_video_defaults(self, aspect: str = "9:16", count: str = "x1",
-                           model: str = "Veo 3.1 - Lite") -> bool:
-        """Persistent Video generation defaults via the tune (Agent settings) drawer."""
+    def set_video_defaults(self, aspect: str | None = None, count: str | None = None,
+                           model: str | None = None) -> bool:
+        """Set persistent Video generation defaults via the tune (Agent settings) drawer.
+
+        Uses self.config values as defaults. Explicit args override the config.
+        """
+        cfg = self.config
+        if aspect is None:
+            aspect = cfg.aspect_ratio
+        if count is None:
+            count = f"x{cfg.output_count}"
+        if model is None:
+            model = cfg.model
         assert self._page
         try:
             self._page.locator('button[aria-label="Settings"]').first.click(timeout=8000)
@@ -213,19 +242,108 @@ class GoogleFlowDriver:
 
     # -- generation --------------------------------------------------------
     def _submit_prompt(self, prompt: str) -> bool:
+        """Type prompt into the ProseMirror contenteditable div and click generate.
+
+        The prompt input is a contenteditable DIV (.ProseMirror) inside
+        .base-prompt-box. The generate button is the arrow_forward icon
+        inside .base-prompt-box > bottom-controls.
+        """
         assert self._page
-        try:
-            self._page.locator(".base-prompt-box").first.click(timeout=5000)
-            self._page.keyboard.type(prompt, delay=15)
-            self._wait(800)
-            gen = self._page.locator(".generate-icon-button")
-            if gen.count() == 0 or gen.first.evaluate("el => el.disabled"):
+
+        # Helper: focus a contenteditable div and type into it
+        def _type_into_prosemirror(text: str) -> bool:
+            try:
+                pm = self._page.locator(".ProseMirror")
+                if pm.count() == 0:
+                    return False
+                # Click to focus
+                pm.first.click(timeout=3000)
+                self._wait(500)
+                # Force focus via JS
+                self._page.evaluate("""() => {
+                    const pm = document.querySelector('.ProseMirror');
+                    if (pm) {
+                        pm.focus();
+                        // Ensure we're in edit mode
+                        document.execCommand('selectAll', false, null);
+                    }
+                }""")
+                self._wait(300)
+                # Use clipboard paste — most reliable for contenteditable divs
+                # Write text to clipboard, then paste into the focused div
+                self._page.evaluate("""(text) => {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.style.position = 'fixed';
+                    ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                }""", text)
+                self._wait(300)
+                # Paste into the focused ProseMirror
+                try:
+                    self._page.keyboard.press("Control+V")
+                    self._wait(1000)
+                except Exception:
+                    pass
+                # Fallback: type character by character if clipboard paste failed
+                content = self._page.evaluate("""() => {
+                    const pm = document.querySelector('.ProseMirror');
+                    return pm ? (pm.innerText || pm.textContent || '').trim() : '';
+                }""")
+                if not content:
+                    for ch in text:
+                        self._page.keyboard.type(ch, delay=5)
+                        self._wait(10)
+                    self._wait(500)
+                return True
+            except Exception as exc:
+                logger.error("_submit_prompt: failed to type into ProseMirror: %s", exc)
                 return False
-            gen.first.click(timeout=5000)
-            return True
-        except Exception as exc:
-            logger.error("submit failed: %s", exc)
+
+        # Type into the ProseMirror contenteditable div
+        if not _type_into_prosemirror(prompt):
+            logger.error("_submit_prompt: could not type into prompt input")
             return False
+
+        # Verify textarea-like content was entered
+        content = self._page.evaluate("""() => {
+            const pm = document.querySelector('.ProseMirror');
+            return pm ? (pm.innerText || pm.textContent || '').trim() : '';
+        }""")
+        if not content:
+            logger.error("_submit_prompt: ProseMirror is empty after typing")
+            return False
+        logger.info("_submit_prompt: typed %d chars into prompt", len(content))
+
+        # Find and click the generate button (arrow_forward inside bottom-controls)
+        gen = self._page.locator(".base-prompt-box .bottom-controls .generate-icon-button, "
+                                 ".base-prompt-box .bottom-controls button[aria-label=\"Start generation\"]")
+        if gen.count() == 0:
+            # Fallback: find any generate icon button
+            gen = self._page.locator(".generate-icon-button")
+        if gen.count() == 0:
+            logger.error("_submit_prompt: no generate button found")
+            return False
+
+        # Wait for it to become enabled
+        deadline = time.time() + 15000
+        while time.time() < deadline:
+            disabled = gen.first.evaluate("el => el.disabled")
+            if not disabled:
+                break
+            self._wait(500)
+
+        if gen.first.evaluate("el => el.disabled"):
+            logger.error("_submit_prompt: generate button still disabled")
+            return False
+
+        logger.info("_submit_prompt: clicking generate button")
+        gen.first.click(timeout=5000)
+        self._wait(1000)
+        return True
 
     def _approve_if_asked(self, timeout_s: int = 90) -> bool:
         """Click Approve/Always approve when the agent asks for confirmation.
@@ -351,10 +469,14 @@ class GoogleFlowDriver:
         return None
 
     # -- public pipeline -----------------------------------------------------
-    def generate_image(self, prompt: str, project_url: Optional[str] = None) -> Optional[str]:
-        """Stage 1: generate a reference image. Returns downloaded file path."""
+    def generate_image(self, prompt: str, project_url: Optional[str] = None,
+                       config: GenerationConfig | None = None) -> Optional[str]:
+        """Stage 1: generate a reference image. Returns downloaded file path.
+
+        Uses config.image_aspect_ratio to set the image generation aspect ratio.
+        """
+        cfg = config or self.config
         if project_url:
-            # reuse the given project — do NOT re-navigate
             assert self._page
             self._page.goto(project_url, timeout=30000, wait_until="domcontentloaded")
             self._wait(4000)
@@ -364,10 +486,44 @@ class GoogleFlowDriver:
             project_url = self.new_project()
             if not project_url:
                 return None
+        # Set image aspect ratio from config (default: 9:16)
+        self._set_image_aspect_ratio(cfg.image_aspect_ratio)
         if not self._submit_prompt(prompt):
             return None
         self._wait_media("imgs", timeout_s=240)
         return self._download_media("Original size")
+
+    def _set_image_aspect_ratio(self, aspect: str = "9:16") -> bool:
+        """Set image generation aspect ratio via the settings drawer toggle.
+
+        Maps: '9:16' -> crop_9_16, '16:9' -> crop_16_9, '1:1' -> crop_square, etc.
+        """
+        assert self._page
+        # Click the settings trigger (Nano Banana 2 chip)
+        try:
+            self._page.locator(".settings-trigger-button").first.click(timeout=8000)
+        except Exception:
+            return False
+        self._wait(2000)
+        # Find and click the matching aspect ratio toggle
+        aspect_map = {
+            "9:16": "crop_9_16",
+            "16:9": "crop_16_9",
+            "1:1": "crop_square",
+            "4:3": "crop_landscape",
+            "3:4": "crop_portrait",
+        }
+        toggle_id = aspect_map.get(aspect, f"crop_{aspect.replace(':', '_')}")
+        try:
+            toggle = self._page.locator(f'mat-button-toggle:has-text("{toggle_id}")')
+            if toggle.count() > 0:
+                toggle.first.click(timeout=5000)
+                self._wait(500)
+                logger.info("Set image aspect ratio to %s", aspect)
+                return True
+        except Exception as exc:
+            logger.warning("Failed to set image aspect ratio: %s", exc)
+        return False
 
     def generate_video(self, prompt: str, project_url: Optional[str] = None,
                        attach_last_image: bool = True) -> Optional[str]:

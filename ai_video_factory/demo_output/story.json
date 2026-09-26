@@ -1,0 +1,192 @@
+{
+  "story": {
+    "topic": "haunted doll",
+    "niche": "horror",
+    "target_seconds": 300,
+    "title": "The Haunted Doll",
+    "logline": "A horror story where haunted doll awakens a darkness.",
+    "acts": [
+      {
+        "act_number": 1,
+        "title": "Act 1",
+        "summary": "A horror story about haunted doll \u2014 act 1.",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "act_number": 1,
+            "title": "Exposition",
+            "description": "exposition: a oppressive_and_claustrophobic moment around haunted doll.",
+            "narration_text": "In a slow_burn tale of horror, something stirs around haunted doll.",
+            "narration_seconds": 5.0,
+            "target_clip_seconds": 8.0
+          },
+          {
+            "scene_number": 2,
+            "act_number": 1,
+            "title": "Rising Tension",
+            "description": "rising tension: a oppressive_and_claustrophobic moment around haunted doll.",
+            "narration_text": "The air grows cooler. Something is watching.",
+            "narration_seconds": 5.0,
+            "target_clip_seconds": 8.0
+          },
+          {
+            "scene_number": 3,
+            "act_number": 1,
+            "title": "Jump Scare",
+            "description": "jump scare: a oppressive_and_claustrophobic moment around haunted doll.",
+            "narration_text": "A sudden sound breaks the silence.",
+            "narration_seconds": 5.0,
+            "target_clip_seconds": 8.0
+          },
+          {
+            "scene_number": 4,
+            "act_number": 1,
+            "title": "Revelation",
+            "description": "revelation: a oppressive_and_claustrophobic moment around haunted doll.",
+            "narration_text": "The truth reveals itself in the shadows.",
+            "narration_seconds": 5.0,
+            "target_clip_seconds": 8.0
+          },
+          {
+            "scene_number": 5,
+            "act_number": 1,
+            "title": "Climax",
+            "description": "climax: a oppressive_and_claustrophobic moment around haunted doll.",
+            "narration_text": "Everything converges. There is no escape.",
+            "narration_seconds": 5.0,
+            "target_clip_seconds": 8.0
+          }
+        ]
+      },
+      {
+        "act_number": 2,
+        "title": "Act 2",
+        "summary": "A horror story about haunted doll \u2014 act 2.",
+        "scenes": [
+          {
+            "scene_number": 6,
+            "act_number": 2,
+            "title": "Exposition",
+            "description": "exposition: a oppressive_and_claustrophobic moment around haunted doll.",
+            "narration_text": "In a slow_burn tale of horror, something stirs around haunted doll.",
+            "narration_seconds": 5.0,
+            "target_clip_seconds": 8.0
+          },
+          {
+            "scene_number": 7,
+            "act_number": 2,
+            "title": "Rising Tension",
+            "description": "rising tension: a oppressive_and_claustrophobic moment around haunted doll.",
+            "narration_text": "The air grows cooler. Something is watching.",
+            "narration_seconds": 5.0,
+            "target_clip_seconds": 8.0
+          },
+          {
+            "scene_number": 8,
+            "act_number": 2,
+            "title": "Jump Scare",
+            "description": "jump scare: a oppressive_and_claustrophobic moment around haunted doll.",
+            "narration_text": "A sudden sound breaks the silence.",
+            "narration_seconds": 5.0,
+            "target_clip_seconds": 8.0
+          },
+          {
+            "scene_number": 9,
+            "act_number": 2,
+            "title": "Revelation",
+            "description": "revelation: a oppressive_and_claustrophobic moment around haunted doll.",
+            "narration_text": "The truth reveals itself in the shadows.",
+            "narration_seconds": 5.0,
+            "target_clip_seconds": 8.0
+          },
+          {
+            "scene_number": 10,
+            "act_number": 2,
+            "title": "Climax",
+            "description": "climax: a oppressive_and_claustrophobic moment around haunted doll.",
+            "narration_text": "Everything converges. There is no escape.",
+            "narration_seconds": 5.0,
+            "target_clip_seconds": 8.0
+          }
+        ]
+      },
+      {
+        "act_number": 3,
+        "title": "Act 3",
+        "summary": "A horror story about haunted doll \u2014 act 3.",
+        "scenes": [
+          {
+            "scene_number": 11,
+            "act_number": 3,
+            "title": "Exposition",
+            "description": "exposition: a oppressive_and_claustrophobic moment around haunted doll.",
+            "narration_text": "In a slow_burn tale of horror, something stirs around haunted doll.",
+            "narration_seconds": 5.0,
+            "target_clip_seconds": 8.0
+          },
+          {
+            "scene_number": 12,
+            "act_number": 3,
+            "title": "Rising Tension",
+            "description": "rising tension: a oppressive_and_claustrophobic moment around haunted doll.",
+            "narration_text": "The air grows cooler. Something is watching.",
+            "narration_seconds": 5.0,
+            "target_clip_seconds": 8.0
+          },
+          {
+            "scene_number": 13,
+            "act_number": 3,
+            "title": "Jump Scare",
+            "description": "jump scare: a oppressive_and_claustrophobic moment around haunted doll.",
+            "narration_text": "A sudden sound breaks the silence.",
+            "narration_seconds": 5.0,
+            "target_clip_seconds": 8.0
+          },
+          {
+            "scene_number": 14,
+            "act_number": 3,
+            "title": "Revelation",
+            "description": "revelation: a oppressive_and_claustrophobic moment around haunted doll.",
+            "narration_text": "The truth reveals itself in the shadows.",
+            "narration_seconds": 5.0,
+            "target_clip_seconds": 8.0
+          },
+          {
+            "scene_number": 15,
+            "act_number": 3,
+            "title": "Climax",
+            "description": "climax: a oppressive_and_claustrophobic moment around haunted doll.",
+            "narration_text": "Everything converges. There is no escape.",
+            "narration_seconds": 5.0,
+            "target_clip_seconds": 8.0
+          }
+        ]
+      }
+    ]
+  },
+  "character_bible": {
+    "characters": [
+      {
+        "name": "The Protagonist",
+        "appearance": "Unseen silhouette, ordinary clothing, cautious demeanor.",
+        "clothing": "Casual dark clothing suitable for nighttime",
+        "props": [
+          "Flashlight",
+          "Phone (dead battery)"
+        ]
+      }
+    ],
+    "notes": "Visual style: oppressive_and_claustrophobic."
+  },
+  "visual_bible": {
+    "color_palette": [
+      "deep_red",
+      "dark_blue",
+      "black"
+    ],
+    "lighting": "low_contrast_with_sporadic_highlights",
+    "camera_style": "tight_closeups_then_wide_reveal",
+    "notes": "oppressive_and_claustrophobic",
+    "aspect_ratio": "16:9"
+  }
+}

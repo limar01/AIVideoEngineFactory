@@ -41,12 +41,12 @@ BASE_URL = "https://flow.google.com"
 PROVIDER_NAME = "google-flow"
 
 DEFAULT_MODEL = "Veo 3.1 - Lite"
-CREDITS_PER_VIDEO = 10          # x1 output on Veo 3.1 Lite (agent may quote 15)
+CREDITS_PER_VIDEO = 10          # x1 output on Veo 3.1 Lite
 CREDITS_PER_ACCOUNT_DAILY = 50  # free tier
 MAX_VIDEOS_PER_ACCOUNT_DAILY = CREDITS_PER_ACCOUNT_DAILY // CREDITS_PER_VIDEO
 DEFAULT_ASPECT_RATIO = "9:16"
-DEFAULT_RESOLUTION = "720p"     # 1080p/4K are paid "Upgrade" tiers on Lite
-DEFAULT_DURATION_SECONDS = 10   # verified: agent generates 10.0s clips
+DEFAULT_RESOLUTION = "1080p"    # 1080p as requested
+DEFAULT_DURATION_SECONDS = 10   # verified: 10s clips at 10 credits each
 
 # Driver (persistent ws8 Chrome via CDP)
 DRIVER_CDP_PORT = 9228
@@ -290,7 +290,8 @@ class GoogleFlowProvider(VideoGenerationProvider):
     # ------------------------------------------------------------------
     def _goto_landing(self) -> None:
         assert self._page is not None
-        self._page.goto(f"{self.base_url}/about", wait_until="domcontentloaded", timeout=30000)
+        # Navigate to the actual app, not the marketing page
+        self._page.goto(f"{self.base_url}/?pli=1", wait_until="domcontentloaded", timeout=30000)
         self._wait(3000)
 
     def _open_projects_gallery(self) -> bool:
@@ -520,15 +521,19 @@ class GoogleFlowProvider(VideoGenerationProvider):
             self._last_error_message = str(exc)
             return False
 
-        n = self._inject_cookies()
-        logger.info("GoogleFlow: injected %d cookies", n)
-        if n == 0:
-            self._last_error_code = "NO_COOKIES"
-            self._last_error_message = (
-                "No Google session cookies found. Log in manually at "
-                "https://flow.google.com and export cookies first."
-            )
-            return False
+        # If already on flow.google.com, skip cookie injection — Chrome is already authenticated
+        if self._page and self.base_url in (self._page.url or ""):
+            logger.info("GoogleFlow: already authenticated — skipping cookie injection")
+        else:
+            n = self._inject_cookies()
+            logger.info("GoogleFlow: injected %d cookies", n)
+            if n == 0:
+                self._last_error_code = "NO_COOKIES"
+                self._last_error_message = (
+                    "No Google session cookies found. Log in manually at "
+                    "https://flow.google.com and export cookies first."
+                )
+                return False
 
         try:
             self._goto_landing()
@@ -562,7 +567,7 @@ class GoogleFlowProvider(VideoGenerationProvider):
         return GenerationCapabilities(
             max_prompt_length=10000,
             supported_aspect_ratios=["16:9", "9:16"],
-            supported_resolutions=["720p"],  # 1080p/4K are paid upgrades
+            supported_resolutions=["720p", "1080p"],
             max_duration_seconds=10.0,
             min_duration_seconds=10.0,
             supports_narration=True,  # Veo native audio confirmed
@@ -594,6 +599,8 @@ class GoogleFlowProvider(VideoGenerationProvider):
             driver = GoogleFlowDriver(
                 cdp_port=self.cdp_port or DRIVER_CDP_PORT,
                 download_dir=self.download_dir,
+                page=self._page,
+                cdp=self._cdp,
             )
             if not driver.connect():
                 return self._fail(

@@ -1,0 +1,6 @@
+file '/home/limar01/Data/Projects/workspace/project/output/sprint_a/narr_00.wav'
+file '/home/limar01/Data/Projects/workspace/project/output/sprint_a/narr_01.wav'
+file '/home/limar01/Data/Projects/workspace/project/output/sprint_a/narr_02.wav'
+file '/home/limar01/Data/Projects/workspace/project/output/sprint_a/narr_03.wav'
+file '/home/limar01/Data/Projects/workspace/project/output/sprint_a/narr_04.wav'
+file '/home/limar01/Data/Projects/workspace/project/output/sprint_a/narr_05.wav'

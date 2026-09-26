@@ -1,4 +1,4 @@
-"""Prompts module - scene-to-prompt compiler for SnapGen/Veo.
+"""Prompts module - scene-to-prompt compiler with provider adapter.
 
 Format: cinematic continuous shot with character outfit/props/background locked,
 Taglish dialogue in prompt (Veo generates audio), negative prompts for consistency.
@@ -36,17 +36,16 @@ class PromptAdapter:
 
 
 # ---------------------------------------------------------------------------
-# SnapGen/Veo Prompt Adapter - Pinoy drama format
+# Cinematic Prompt Adapter - Pinoy drama format
 # ---------------------------------------------------------------------------
 
 
-class SnapGenPromptAdapter(PromptAdapter):
-    """Format scenes for SnapGen Veo 3.1.
+class CinematicPromptAdapter(PromptAdapter):
+    """Format scenes for cinematic video providers (Google Flow / Veo / etc.).
 
-    Veo generates video WITH audio from prompt text. Taglish dialogue and
-    narration baked in as text. Character consistency via continuity DNA
-    (outfit/props/background per scene). Genre tone injected from visual bible
-    or continuity DNA.
+    Builds provider-ready prompts from universal scene data using the
+    master prompt's Section 23/24 format: character DNA, setting, action,
+    dialogue (Taglish), audio direction, camera, lighting, negative constraints.
     """
 
     ASPECT_RATIO = "9:16"
@@ -273,7 +272,7 @@ class PromptCompiler:
         adapter: PromptAdapter | None = None,
     ) -> None:
         self.provider = provider
-        self.adapter = adapter or SnapGenPromptAdapter()
+        self.adapter = adapter or CinematicPromptAdapter()
         logger.info("PromptCompiler initialized (provider=%s)", provider)
 
     def compile(
@@ -413,10 +412,10 @@ def _optimize_description(description: str, complexity: str) -> str:
 
 
 _ADAPTERS: dict[str, type[PromptAdapter]] = {
-    "snapgen": SnapGenPromptAdapter,
+    "snapgen": CinematicPromptAdapter,
 }
 
 
 def get_prompt_adapter(provider: str) -> PromptAdapter:
-    cls = _ADAPTERS.get(provider, SnapGenPromptAdapter)
+    cls = _ADAPTERS.get(provider, CinematicPromptAdapter)
     return cls()

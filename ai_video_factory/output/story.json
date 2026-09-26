@@ -1,0 +1,417 @@
+{
+  "topic": "ang_nawawalang_pitaka",
+  "niche": "pinoy_drama",
+  "target_seconds": 60,
+  "title": "Pinoy Drama: Ang Nawawalang Pitaka",
+  "logline": "Isang maikling kwento ng pamilyang Pinoy — ang_nawawalang_pitaka.",
+  "acts": [
+    {
+      "act_number": 1,
+      "title": "Act 1",
+      "summary": "Pinoy drama — ang_nawawalang_pitaka.",
+      "scenes": [
+        {
+          "scene_number": 1,
+          "act_number": 1,
+          "title": "The Gathering",
+          "description": "Pinoy drama scene 1: Interior of modest Filipino house living room, afternoon light through window, f...",
+          "narration_text": "[VOICEOVER]: A family gathering in a modest Filipino home. The air thick with unspoken words.\n\n[DIALOGUE]: Aling Nena: \"Anak, kailangan mo na yang pera para sa school supplies ni Mia?\" Kiko: \"Ay nako, tatay, wala na akong pambili. Hindi ko alam kung paano ko sasabihin 'to.\"",
+          "narration_seconds": 8.0,
+          "target_clip_seconds": 8.0,
+          "characters": [
+            "Aling Nena",
+            "Kiko"
+          ],
+          "background_scene": "Interior of modest Filipino house living room, afternoon light through window, family photos on wall, ceiling fan slowly turning, simple wooden furniture",
+          "outfit_description": "Aling Nena: White work blouse with floral print, dark blue skirt, simple gold necklace, hair in neat bun with loose strands.. Carrying: Oblong plastic bag with market goods, Worn slippers. | Kiko: Faded black band t-shirt (slightly oversized), grey joggers, scuffed canvas shoes, silver ring on right hand.. Carrying: Cellphone with cracked screen, Ballpoint pen. |",
+          "props_list": [
+            "Oblong plastic bag with market goods",
+            "Worn slippers",
+            "Cellphone with cracked screen",
+            "Ballpoint pen"
+          ],
+          "dialogue_lines": [
+            [
+              "Aling Nena",
+              "Anak, kailangan mo na yang pera para sa school supplies ni Mia?"
+            ],
+            [
+              "Kiko",
+              "Ay nako, tatay, wala na akong pambili. Hindi ko alam kung paano ko sasabihin 'to."
+            ]
+          ],
+          "continuity_dna": {
+            "characters": [
+              "Aling Nena",
+              "Kiko"
+            ],
+            "outfits": {
+              "Aling Nena": "Aling Nena: White work blouse with floral print, dark blue skirt, simple gold necklace, hair in neat bun with loose strands.. Carrying: Oblong plastic bag with market goods, Worn slippers.",
+              "Kiko": "Kiko: Faded black band t-shirt (slightly oversized), grey joggers, scuffed canvas shoes, silver ring on right hand.. Carrying: Cellphone with cracked screen, Ballpoint pen."
+            },
+            "background": "Interior of modest Filipino house living room, afternoon light through window, family photos on wall, ceiling fan slowly turning, simple wooden furniture",
+            "dialogue_language": "Taglish (Tagalog-English)",
+            "aspect_ratio": "9:16"
+          }
+        },
+        {
+          "scene_number": 2,
+          "act_number": 1,
+          "title": "Morning Light",
+          "description": "Pinoy drama scene 2: Kitchen area of Filipino home, small gas stove, plate of leftover food on table,...",
+          "narration_text": "[VOICEOVER]: Another day in the life of a family trying to make ends meet.\n\n[DIALOGUE]: Aling Nena: \"Nakakainis talaga ang buhay no? Parang lahat ng plano, nagka-unti-unti ang natitira.\" Mia: \"Tay, hindi ka na dapat mag-alala. May bagian din tayo sa Diyos.\"",
+          "narration_seconds": 8.0,
+          "target_clip_seconds": 8.0,
+          "characters": [
+            "Aling Nena",
+            "Kiko"
+          ],
+          "background_scene": "Kitchen area of Filipino home, small gas stove, plate of leftover food on table, cup of coffee, afternoon light through curtains, family calendar on wall",
+          "outfit_description": "Aling Nena: White work blouse with floral print, dark blue skirt, simple gold necklace, hair in neat bun with loose strands.. Carrying: Oblong plastic bag with market goods, Worn slippers. | Kiko: Faded black band t-shirt (slightly oversized), grey joggers, scuffed canvas shoes, silver ring on right hand.. Carrying: Cellphone with cracked screen, Ballpoint pen. |",
+          "props_list": [
+            "Oblong plastic bag with market goods",
+            "Worn slippers",
+            "Cellphone with cracked screen",
+            "Ballpoint pen"
+          ],
+          "dialogue_lines": [
+            [
+              "Aling Nena",
+              "Nakakainis talaga ang buhay no? Parang lahat ng plano, nagka-unti-unti ang natitira."
+            ],
+            [
+              "Mia",
+              "Tay, hindi ka na dapat mag-alala. May bagian din tayo sa Diyos."
+            ]
+          ],
+          "continuity_dna": {
+            "characters": [
+              "Aling Nena",
+              "Kiko"
+            ],
+            "outfits": {
+              "Aling Nena": "Aling Nena: White work blouse with floral print, dark blue skirt, simple gold necklace, hair in neat bun with loose strands.. Carrying: Oblong plastic bag with market goods, Worn slippers.",
+              "Kiko": "Kiko: Faded black band t-shirt (slightly oversized), grey joggers, scuffed canvas shoes, silver ring on right hand.. Carrying: Cellphone with cracked screen, Ballpoint pen."
+            },
+            "background": "Kitchen area of Filipino home, small gas stove, plate of leftover food on table, cup of coffee, afternoon light through curtains, family calendar on wall",
+            "dialogue_language": "Taglish (Tagalog-English)",
+            "aspect_ratio": "9:16"
+          }
+        },
+        {
+          "scene_number": 3,
+          "act_number": 1,
+          "title": "Whispers in the Kitchen",
+          "description": "Pinoy drama scene 3: Street scene outside Filipino neighborhood, narrow road, jeepney in distance, tr...",
+          "narration_text": "[VOICEOVER]: Shadows of doubt begin to creep into their hearts.\n\n[DIALOGUE]: Kiko: \"Grabe, akala ko kaya ko 'to, pero parang nalulungkot na ako. Parang wala nang pag-asa.\" Apo Lola: \"Huwag kang mag-alala, apo. May plano ang Diyos — hindi mo kailangan intindihin lahat.\"",
+          "narration_seconds": 8.0,
+          "target_clip_seconds": 8.0,
+          "characters": [
+            "Aling Nena",
+            "Kiko"
+          ],
+          "background_scene": "Street scene outside Filipino neighborhood, narrow road, jeepney in distance, tricycle passing, sari-sari store with goods outside, children playing",
+          "outfit_description": "Aling Nena: White work blouse with floral print, dark blue skirt, simple gold necklace, hair in neat bun with loose strands.. Carrying: Oblong plastic bag with market goods, Worn slippers. | Kiko: Faded black band t-shirt (slightly oversized), grey joggers, scuffed canvas shoes, silver ring on right hand.. Carrying: Cellphone with cracked screen, Ballpoint pen. |",
+          "props_list": [
+            "Oblong plastic bag with market goods",
+            "Worn slippers",
+            "Cellphone with cracked screen",
+            "Ballpoint pen"
+          ],
+          "dialogue_lines": [
+            [
+              "Kiko",
+              "Grabe, akala ko kaya ko 'to, pero parang nalulungkot na ako. Parang wala nang pag-asa."
+            ],
+            [
+              "Apo Lola",
+              "Huwag kang mag-alala, apo. May plano ang Diyos — hindi mo kailangan intindihin lahat."
+            ]
+          ],
+          "continuity_dna": {
+            "characters": [
+              "Aling Nena",
+              "Kiko"
+            ],
+            "outfits": {
+              "Aling Nena": "Aling Nena: White work blouse with floral print, dark blue skirt, simple gold necklace, hair in neat bun with loose strands.. Carrying: Oblong plastic bag with market goods, Worn slippers.",
+              "Kiko": "Kiko: Faded black band t-shirt (slightly oversized), grey joggers, scuffed canvas shoes, silver ring on right hand.. Carrying: Cellphone with cracked screen, Ballpoint pen."
+            },
+            "background": "Street scene outside Filipino neighborhood, narrow road, jeepney in distance, tricycle passing, sari-sari store with goods outside, children playing",
+            "dialogue_language": "Taglish (Tagalog-English)",
+            "aspect_ratio": "9:16"
+          }
+        },
+        {
+          "scene_number": 4,
+          "act_number": 1,
+          "title": "At the Market",
+          "description": "Pinoy drama scene 4: Market area, crowded stalls with goods, vendors calling out, baskets of vegetabl...",
+          "narration_text": "[VOICEOVER]: A moment of truth emerges amidst everyday struggles.\n\n[DIALOGUE]: Aling Nena: \"Tingnan mo, Mia. Kung makikita mo ang mga bagay na nasa paligid mo, may halaga ang lahat. Kahit maliit.\" Mia: \"Tama si Lola, Tay. Basta tayo magtulungan, kaya nating overcome ang lahat.\"",
+          "narration_seconds": 8.0,
+          "target_clip_seconds": 8.0,
+          "characters": [
+            "Aling Nena",
+            "Kiko",
+            "Mia"
+          ],
+          "background_scene": "Market area, crowded stalls with goods, vendors calling out, baskets of vegetables and fruits, sunlight through awning, people with bags",
+          "outfit_description": "Aling Nena: White work blouse with floral print, dark blue skirt, simple gold necklace, hair in neat bun with loose strands.. Carrying: Oblong plastic bag with market goods, Worn slippers. | Kiko: Faded black band t-shirt (slightly oversized), grey joggers, scuffed canvas shoes, silver ring on right hand.. Carrying: Cellphone with cracked screen, Ballpoint pen. | Mia: White blouse with school emblem, grey pleated skirt, black ribbon in hair, simple stud earrings.. Carrying: Small notebook, Pencil case. |",
+          "props_list": [
+            "Oblong plastic bag with market goods",
+            "Worn slippers",
+            "Cellphone with cracked screen",
+            "Ballpoint pen",
+            "Small notebook",
+            "Pencil case"
+          ],
+          "dialogue_lines": [
+            [
+              "Aling Nena",
+              "Tingnan mo, Mia. Kung makikita mo ang mga bagay na nasa paligid mo, may halaga ang lahat. Kahit maliit."
+            ],
+            [
+              "Mia",
+              "Tama si Lola, Tay. Basta tayo magtulungan, kaya nating overcome ang lahat."
+            ]
+          ],
+          "continuity_dna": {
+            "characters": [
+              "Aling Nena",
+              "Kiko",
+              "Mia"
+            ],
+            "outfits": {
+              "Aling Nena": "Aling Nena: White work blouse with floral print, dark blue skirt, simple gold necklace, hair in neat bun with loose strands.. Carrying: Oblong plastic bag with market goods, Worn slippers.",
+              "Kiko": "Kiko: Faded black band t-shirt (slightly oversized), grey joggers, scuffed canvas shoes, silver ring on right hand.. Carrying: Cellphone with cracked screen, Ballpoint pen.",
+              "Mia": "Mia: White blouse with school emblem, grey pleated skirt, black ribbon in hair, simple stud earrings.. Carrying: Small notebook, Pencil case."
+            },
+            "background": "Market area, crowded stalls with goods, vendors calling out, baskets of vegetables and fruits, sunlight through awning, people with bags",
+            "dialogue_language": "Taglish (Tagalog-English)",
+            "aspect_ratio": "9:16"
+          }
+        }
+      ]
+    },
+    {
+      "act_number": 2,
+      "title": "Act 2",
+      "summary": "Pinoy drama — ang_nawawalang_pitaka.",
+      "scenes": [
+        {
+          "scene_number": 5,
+          "act_number": 2,
+          "title": "The Bedroom Confession",
+          "description": "Pinoy drama scene 5: Bedroom of Filipino home, small room with bunk bed, fan overhead, family picture...",
+          "narration_text": "[VOICEOVER]: Hope flickers in the darkness like a candle in the wind.\n\n[DIALOGUE]: Kiko: \"Akala ko kasi ayoko na, pero when I see you, nananatili pa rin ang hope sa puso ko.\" Aling Nena: \"Love ko 'yan sa iyo, anak. Kahit anong mangyari, kayo ang pangarap ko.\"",
+          "narration_seconds": 8.0,
+          "target_clip_seconds": 8.0,
+          "characters": [
+            "Aling Nena",
+            "Kiko",
+            "Mia"
+          ],
+          "background_scene": "Bedroom of Filipino home, small room with bunk bed, fan overhead, family pictures on wall, notebook on bedside table",
+          "outfit_description": "Aling Nena: White work blouse with floral print, dark blue skirt, simple gold necklace, hair in neat bun with loose strands.. Carrying: Oblong plastic bag with market goods, Worn slippers. | Kiko: Faded black band t-shirt (slightly oversized), grey joggers, scuffed canvas shoes, silver ring on right hand.. Carrying: Cellphone with cracked screen, Ballpoint pen. | Mia: White blouse with school emblem, grey pleated skirt, black ribbon in hair, simple stud earrings.. Carrying: Small notebook, Pencil case. |",
+          "props_list": [
+            "Oblong plastic bag with market goods",
+            "Worn slippers",
+            "Cellphone with cracked screen",
+            "Ballpoint pen",
+            "Small notebook",
+            "Pencil case"
+          ],
+          "dialogue_lines": [
+            [
+              "Kiko",
+              "Akala ko kasi ayoko na, pero when I see you, nananatili pa rin ang hope sa puso ko."
+            ],
+            [
+              "Aling Nena",
+              "Love ko 'yan sa iyo, anak. Kahit anong mangyari, kayo ang pangarap ko."
+            ]
+          ],
+          "continuity_dna": {
+            "characters": [
+              "Aling Nena",
+              "Kiko",
+              "Mia"
+            ],
+            "outfits": {
+              "Aling Nena": "Aling Nena: White work blouse with floral print, dark blue skirt, simple gold necklace, hair in neat bun with loose strands.. Carrying: Oblong plastic bag with market goods, Worn slippers.",
+              "Kiko": "Kiko: Faded black band t-shirt (slightly oversized), grey joggers, scuffed canvas shoes, silver ring on right hand.. Carrying: Cellphone with cracked screen, Ballpoint pen.",
+              "Mia": "Mia: White blouse with school emblem, grey pleated skirt, black ribbon in hair, simple stud earrings.. Carrying: Small notebook, Pencil case."
+            },
+            "background": "Bedroom of Filipino home, small room with bunk bed, fan overhead, family pictures on wall, notebook on bedside table",
+            "dialogue_language": "Taglish (Tagalog-English)",
+            "aspect_ratio": "9:16"
+          }
+        },
+        {
+          "scene_number": 6,
+          "act_number": 2,
+          "title": "In the Front Yard",
+          "description": "Pinoy drama scene 6: Front yard of Filipino house, concrete ground, small garden with ornamental plan...",
+          "narration_text": "[VOICEOVER]: The family faces their fears together, hand in hand.\n\n[DIALOGUE]: Mia: \"Tay, next week may scholarship opportunity ako. Pwede kitang tulungan doon.\" Kiko: \"Grabe, Mio? Talagang may pag-asa pa? Salamat, anak. Ibibigay ko lahat ng makakaya ko.\"",
+          "narration_seconds": 8.0,
+          "target_clip_seconds": 8.0,
+          "characters": [
+            "Aling Nena",
+            "Kiko",
+            "Mia",
+            "Apo Lola"
+          ],
+          "background_scene": "Front yard of Filipino house, concrete ground, small garden with ornamental plants, wooden gate, afternoon shadows, quiet street",
+          "outfit_description": "Aling Nena: White work blouse with floral print, dark blue skirt, simple gold necklace, hair in neat bun with loose strands.. Carrying: Oblong plastic bag with market goods, Worn slippers. | Kiko: Faded black band t-shirt (slightly oversized), grey joggers, scuffed canvas shoes, silver ring on right hand.. Carrying: Cellphone with cracked screen, Ballpoint pen. | Mia: White blouse with school emblem, grey pleated skirt, black ribbon in hair, simple stud earrings.. Carrying: Small notebook, Pencil case. | Apo Lola: Traditional Filipino terno dress in subdued colors, knit shawl over shoulders, simple earrings.. Carrying: Rosary beads, Small hand fan. |",
+          "props_list": [
+            "Oblong plastic bag with market goods",
+            "Worn slippers",
+            "Cellphone with cracked screen",
+            "Ballpoint pen",
+            "Small notebook",
+            "Pencil case",
+            "Rosary beads",
+            "Small hand fan"
+          ],
+          "dialogue_lines": [
+            [
+              "Mia",
+              "Tay, next week may scholarship opportunity ako. Pwede kitang tulungan doon."
+            ],
+            [
+              "Kiko",
+              "Grabe, Mio? Talagang may pag-asa pa? Salamat, anak. Ibibigay ko lahat ng makakaya ko."
+            ]
+          ],
+          "continuity_dna": {
+            "characters": [
+              "Aling Nena",
+              "Kiko",
+              "Mia",
+              "Apo Lola"
+            ],
+            "outfits": {
+              "Aling Nena": "Aling Nena: White work blouse with floral print, dark blue skirt, simple gold necklace, hair in neat bun with loose strands.. Carrying: Oblong plastic bag with market goods, Worn slippers.",
+              "Kiko": "Kiko: Faded black band t-shirt (slightly oversized), grey joggers, scuffed canvas shoes, silver ring on right hand.. Carrying: Cellphone with cracked screen, Ballpoint pen.",
+              "Mia": "Mia: White blouse with school emblem, grey pleated skirt, black ribbon in hair, simple stud earrings.. Carrying: Small notebook, Pencil case.",
+              "Apo Lola": "Apo Lola: Traditional Filipino terno dress in subdued colors, knit shawl over shoulders, simple earrings.. Carrying: Rosary beads, Small hand fan."
+            },
+            "background": "Front yard of Filipino house, concrete ground, small garden with ornamental plants, wooden gate, afternoon shadows, quiet street",
+            "dialogue_language": "Taglish (Tagalog-English)",
+            "aspect_ratio": "9:16"
+          }
+        }
+      ]
+    },
+    {
+      "act_number": 3,
+      "title": "Act 3",
+      "summary": "Pinoy drama — ang_nawawalang_pitaka.",
+      "scenes": [
+        {
+          "scene_number": 7,
+          "act_number": 3,
+          "title": "Prayer Time",
+          "description": "Pinoy drama scene 7: Prayer corner in Filipino home, religious images on wall, candle, bench, soft li...",
+          "narration_text": "[VOICEOVER]: A glimmer of light at the end of the tunnel.\n\n[DIALOGUE]: Apo Lola: \"Remember, sa bawat pagsubok, may aral. Hindi tayo nag-iisa sa pagsubok na 'to.\" Aling Nena: \"Tama si Lola. Handa tayong harapin ang lahat, sama-sama.\"",
+          "narration_seconds": 8.0,
+          "target_clip_seconds": 8.0,
+          "characters": [
+            "Aling Nena",
+            "Kiko",
+            "Mia",
+            "Apo Lola"
+          ],
+          "background_scene": "Prayer corner in Filipino home, religious images on wall, candle, bench, soft light, calm spiritual atmosphere",
+          "outfit_description": "Aling Nena: White work blouse with floral print, dark blue skirt, simple gold necklace, hair in neat bun with loose strands.. Carrying: Oblong plastic bag with market goods, Worn slippers. | Kiko: Faded black band t-shirt (slightly oversized), grey joggers, scuffed canvas shoes, silver ring on right hand.. Carrying: Cellphone with cracked screen, Ballpoint pen. | Mia: White blouse with school emblem, grey pleated skirt, black ribbon in hair, simple stud earrings.. Carrying: Small notebook, Pencil case. | Apo Lola: Traditional Filipino terno dress in subdued colors, knit shawl over shoulders, simple earrings.. Carrying: Rosary beads, Small hand fan. |",
+          "props_list": [
+            "Oblong plastic bag with market goods",
+            "Worn slippers",
+            "Cellphone with cracked screen",
+            "Ballpoint pen",
+            "Small notebook",
+            "Pencil case",
+            "Rosary beads",
+            "Small hand fan"
+          ],
+          "dialogue_lines": [
+            [
+              "Apo Lola",
+              "Remember, sa bawat pagsubok, may aral. Hindi tayo nag-iisa sa pagsubok na 'to."
+            ],
+            [
+              "Aling Nena",
+              "Tama si Lola. Handa tayong harapin ang lahat, sama-sama."
+            ]
+          ],
+          "continuity_dna": {
+            "characters": [
+              "Aling Nena",
+              "Kiko",
+              "Mia",
+              "Apo Lola"
+            ],
+            "outfits": {
+              "Aling Nena": "Aling Nena: White work blouse with floral print, dark blue skirt, simple gold necklace, hair in neat bun with loose strands.. Carrying: Oblong plastic bag with market goods, Worn slippers.",
+              "Kiko": "Kiko: Faded black band t-shirt (slightly oversized), grey joggers, scuffed canvas shoes, silver ring on right hand.. Carrying: Cellphone with cracked screen, Ballpoint pen.",
+              "Mia": "Mia: White blouse with school emblem, grey pleated skirt, black ribbon in hair, simple stud earrings.. Carrying: Small notebook, Pencil case.",
+              "Apo Lola": "Apo Lola: Traditional Filipino terno dress in subdued colors, knit shawl over shoulders, simple earrings.. Carrying: Rosary beads, Small hand fan."
+            },
+            "background": "Prayer corner in Filipino home, religious images on wall, candle, bench, soft light, calm spiritual atmosphere",
+            "dialogue_language": "Taglish (Tagalog-English)",
+            "aspect_ratio": "9:16"
+          }
+        },
+        {
+          "scene_number": 8,
+          "act_number": 3,
+          "title": "Basketball Court Drama",
+          "description": "Pinoy drama scene 8: Neighborhood basketball court, cemented court, makeshift hoops, afternoon sun, t...",
+          "narration_text": "[VOICEOVER]: Love and unity bind them through the storm.\n\n[DIALOGUE]: Kiko: \"Promise ko sa inyo, hiharap ko ang lahat. Gamitin ko ang lahat ng natutunan ko.\" Mia: \"We're in this together, Tay. Kaya mo 'yan. We believe in you.\"",
+          "narration_seconds": 8.0,
+          "target_clip_seconds": 8.0,
+          "characters": [
+            "Aling Nena",
+            "Kiko",
+            "Mia"
+          ],
+          "background_scene": "Neighborhood basketball court, cemented court, makeshift hoops, afternoon sun, teenagers playing in background",
+          "outfit_description": "Aling Nena: White work blouse with floral print, dark blue skirt, simple gold necklace, hair in neat bun with loose strands.. Carrying: Oblong plastic bag with market goods, Worn slippers. | Kiko: Faded black band t-shirt (slightly oversized), grey joggers, scuffed canvas shoes, silver ring on right hand.. Carrying: Cellphone with cracked screen, Ballpoint pen. | Mia: White blouse with school emblem, grey pleated skirt, black ribbon in hair, simple stud earrings.. Carrying: Small notebook, Pencil case. |",
+          "props_list": [
+            "Oblong plastic bag with market goods",
+            "Worn slippers",
+            "Cellphone with cracked screen",
+            "Ballpoint pen",
+            "Small notebook",
+            "Pencil case"
+          ],
+          "dialogue_lines": [
+            [
+              "Kiko",
+              "Promise ko sa inyo, hiharap ko ang lahat. Gamitin ko ang lahat ng natutunan ko."
+            ],
+            [
+              "Mia",
+              "We're in this together, Tay. Kaya mo 'yan. We believe in you."
+            ]
+          ],
+          "continuity_dna": {
+            "characters": [
+              "Aling Nena",
+              "Kiko",
+              "Mia"
+            ],
+            "outfits": {
+              "Aling Nena": "Aling Nena: White work blouse with floral print, dark blue skirt, simple gold necklace, hair in neat bun with loose strands.. Carrying: Oblong plastic bag with market goods, Worn slippers.",
+              "Kiko": "Kiko: Faded black band t-shirt (slightly oversized), grey joggers, scuffed canvas shoes, silver ring on right hand.. Carrying: Cellphone with cracked screen, Ballpoint pen.",
+              "Mia": "Mia: White blouse with school emblem, grey pleated skirt, black ribbon in hair, simple stud earrings.. Carrying: Small notebook, Pencil case."
+            },
+            "background": "Neighborhood basketball court, cemented court, makeshift hoops, afternoon sun, teenagers playing in background",
+            "dialogue_language": "Taglish (Tagalog-English)",
+            "aspect_ratio": "9:16"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 from app.prompts.compiler import (
     PromptCompiler,
     PromptAdapter,
-    SnapGenPromptAdapter,
+    CinematicPromptAdapter,
     CompiledPrompt,
     get_prompt_adapter,
 )
@@ -10,7 +10,7 @@ from app.prompts.compiler import (
 __all__ = [
     "PromptCompiler",
     "PromptAdapter",
-    "SnapGenPromptAdapter",
+    "CinematicPromptAdapter",
     "CompiledPrompt",
     "get_prompt_adapter",
 ]

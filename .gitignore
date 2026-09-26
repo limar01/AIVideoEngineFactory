@@ -50,3 +50,6 @@ Thumbs.db
 *.rar
 ```node_modules/
 .next/
+
+# recovered sandbox archive (holds a key copy + 66MB media - never commit)
+_recovered_sandbox_20260926/

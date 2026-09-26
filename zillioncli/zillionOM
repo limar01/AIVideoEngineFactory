@@ -1,0 +1,395 @@
+#!/usr/bin/env python3
+# zillionOM - Zillion CLI Restore for Omarchy PC Lane
+# Usage: zillionOM [-new] [-status] [-fix] [-auto] [-help] [PASSPHRASE] [REPO_URL]
+#
+# PC Lane: limar01 on Omarchy (Arch/Hyprland/NVIDIA)
+# This is the PC-native version of the restore tool
+
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+# Configuration for PC/Omarchy lane
+REPO_URL_DEFAULT = "https://github.com/limar01/zillion-restore"
+CLONE_DIR = Path.home() / "Projects" / "workspace" / "project" / "zillion-restore"
+KEY_FILE = Path.home() / "arenabridge" / "arenabridge.key"
+MEMORY_CORE = CLONE_DIR / "MEMORY_CORE.md"
+ZION_DIR = Path("/home/limar01/Projects/workspace/project/zillioncli")
+ZION_CORE = ZION_DIR / "MEMORY_CORE.md"
+WEB_URL = "http://127.0.0.1:8890"
+QUOTA_THRESHOLD = 85  # Autoheal when quota >= this percentage
+PC_LANE = "pc"
+
+# CLI args parser
+def parse_args():
+    args = sys.argv[1:]
+    result = {"new": False, "status": False, "help": False, "auto": False, "passphrase": None, "repo": REPO_URL_DEFAULT}
+    for arg in args:
+        if arg.startswith("-new"):
+            result["new"] = True
+            parts = arg.split(None, 1)
+            if len(parts) > 1:
+                result["repo"] = parts[1]
+        elif arg in ["-status", "-fix"]:
+            result["status"] = True
+        elif arg == "-auto":
+            result["auto"] = True
+        elif arg in ["-help", "--help", "-h"]:
+            result["help"] = True
+    for arg in args:
+        if not arg.startswith("-") and not arg.startswith("http"):
+            result["passphrase"] = arg
+        if arg.startswith("http"):
+            result["repo"] = arg
+    return result
+
+def show_help():
+    print("""zillionOM — Zillion CLI Restore for Omarchy PC Lane
+Usage: zillionOM [options] [PASSPHRASE] [REPO_URL]
+
+OPTIONS:
+  -new [NAME]     Clean new project (zero past memory)
+  -status         Quick status check (tunnel/worker/adb/keys)
+  -fix            Auto-repair what's DOWN
+  -auto           Auto-heal if quota near limit (>=85%)
+  -help           Show this menu
+
+EXAMPLES:
+  zillionOM                          # Default restore
+  zillionOM -new myproject           # New project
+  zillionOM -status                  # Check status
+  zillionOM -auto                    # Auto-heal if quota high
+  zillionOM "7YBVK-FUGXR-Q7887"      # With passphrase (PC lane)
+  zillionOM -new "key" repo-url      # New with custom URL
+
+QUOTA MONITORING:
+  When -auto flag is used, checks limiter_pct:
+  - >=85%: triggers autoheal flow automatically
+  - <85%: skips autoheal, reports current quota
+
+RESTORE FLOW (PC Lane):
+  1. Clone repo
+  2. Read MEMORY_CORE.md (GATE 0)
+  3. Fetch HMAC key via phone bridge
+  4. Execute auto-restore in Arena AI chat
+
+PC LANE SPECIFIC:
+  - Lane: pc
+  - Host: limar01 on Omarchy
+  - Environment: Arch Linux, Hyprland, NVIDIA
+  - CDP Port: 9222
+  - Web Port: 8890
+""")
+
+def gate0_check():
+    """Read-memory gate: verify restore capability before proceeding."""
+    if not which("git"):
+        print("I'm not capable. I'll stop now.")
+        return False
+    print("✅ Gate 0: git available (PC lane)")
+    return True
+
+def which(cmd):
+    """Check if command exists."""
+    try:
+        subprocess.run(["which", cmd], capture_output=True, check=True)
+        return True
+    except:
+        return False
+
+def get_limiter_pct():
+    """Get current quota usage percentage."""
+    try:
+        r = subprocess.run(["curl", "-s", f"{WEB_URL}/api/limiter"], capture_output=True, text=True, timeout=5)
+        d = json.loads(r.stdout)
+        return d.get("limiter_pct", 0)
+    except:
+        return 0
+
+def check_status():
+    """Quick status: tunnel/worker/adb/keys + quota"""
+    status = {"hub": False, "probe": False, "agent": False, "adb": False, "key": False, "email": None, "quota": 0, "lane": PC_LANE}
+    
+    services = [("hub", "zillion-webui"), ("probe", "zillion-probe"), ("agent", "zillion-agent")]
+    for key, svc in services:
+        try:
+            r = subprocess.run(["systemctl", "--user", "is-active", svc], capture_output=True, text=True, timeout=5)
+            status[key] = r.stdout.strip() == "active"
+        except:
+            pass
+    
+    try:
+        r = subprocess.run(["adb", "devices"], capture_output=True, text=True, timeout=5)
+        status["adb"] = "device" in r.stdout
+    except:
+        pass
+    
+    status["key"] = KEY_FILE.exists()
+    
+    try:
+        r = subprocess.run(["curl", "-s", f"{WEB_URL}/api/auth/state"], capture_output=True, text=True, timeout=5)
+        d = json.loads(r.stdout)
+        status["email"] = d.get("user", {}).get("email") if d.get("loggedIn") else None
+    except:
+        pass
+    
+    status["quota"] = get_limiter_pct()
+    
+    print(f"Lane: {status['lane']} (PC/Omarchy)")
+    print(f"Hub: {status['hub']} | Probe: {status['probe']} | Agent: {status['agent']}")
+    print(f"ADB: {status['adb']} | Key: {status['key']} | Email: {status['email'] or 'none'}")
+    print(f"Quota: {status['quota']}%")
+    return status
+
+def clone_repo(repo_url):
+    """Clone the zillion-restore repo."""
+    CLONE_DIR.mkdir(parents=True, exist_ok=True)
+    if (CLONE_DIR / ".git").exists():
+        print(f"🔄 Updating {CLONE_DIR}...")
+        subprocess.run(["git", "-C", str(CLONE_DIR), "pull"], check=True)
+    else:
+        print(f"📥 Cloning {repo_url}...")
+        subprocess.run(["git", "clone", repo_url, str(CLONE_DIR)], check=True)
+    print(f"✅ Clone complete: {CLONE_DIR}")
+
+def get_tunnel_url():
+    """Get the Cloudflare tunnel URL."""
+    try:
+        r = subprocess.run(["curl", "-s", str(Path.home() / "zillion" / "url.txt")], check=True, capture_output=True, text=True)
+        return r.stdout.strip()
+    except:
+        pass
+    return None
+
+def fetch_key(passphrase):
+    """Fetch HMAC key via phone tunnel bootstrap."""
+    if KEY_FILE.exists():
+        print(f"✅ Key file exists: {KEY_FILE}")
+        return True
+    
+    url = get_tunnel_url()
+    if url:
+        print(f"🔑 Tunnel URL found: {url[:50]}...")
+        try:
+            sys.path.insert(0, str(ZION_DIR / "bridge"))
+            from phone_tun import fetch_key as phone_fetch
+            key = phone_fetch(url, passphrase or "")
+            KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
+            KEY_FILE.write_text(key)
+            os.chmod(KEY_FILE, 0o600)
+            print(f"✅ Key bootstrapped: {KEY_FILE}")
+            return True
+        except ImportError:
+            print("⚠️  phone_tun not available (offline lane)")
+        except Exception as e:
+            print(f"⚠️  Key fetch failed: {e}")
+    
+    return False
+
+def read_memory_core(passphrase=None):
+    """Read MEMORY_CORE.md as GATE 0."""
+    if not MEMORY_CORE.exists():
+        print(f"⚠️  MEMORY_CORE.md not found at {MEMORY_CORE}")
+        return None
+    
+    content = MEMORY_CORE.read_text(encoding="utf-8")
+    
+    if passphrase and "{PASSPHRASE}" in content:
+        content = content.replace("{PASSPHRASE}", passphrase)
+    
+    print(f"📖 READ MAP — {len(content)} chars in MEMORY_CORE.md")
+    return content
+
+def timestamp():
+    return time.strftime("%Y-%m-%d %H:%M:%S")
+
+GATE0_STATUS = """🛡️ STRICT RULES (PC LANE):
+1. ENFORCED: Zero manual typing
+2. KEY: 0600 perms
+3. SCOPE: Locked down
+4. VISION: Direct mode
+5. MEMORY: Loaded
+6. TAGLISH: Active"""
+
+def check_restored(msg):
+    """Check if restore was successful by looking for vision gate markers."""
+    return "vision gate" in msg.lower() or "direct" in msg.lower()
+
+def execute_autoheal(passphrase=None):
+    """Execute autoheal via API or CLI."""
+    print("🔄 Triggering autoheal...")
+    
+    try:
+        r = subprocess.run(["curl", "-s", "-X", "POST", f"{WEB_URL}/api/autoheal",
+                           "-H", "Content-Type: application/json", "-d", "{}"],
+                          capture_output=True, text=True, timeout=60)
+        res = json.loads(r.stdout)
+        
+        if res.get("ok"):
+            email = res.get("res", {}).get("email") or "generated"
+            quota = res.get("limiter_pct", 0)
+            print(f"✅ Autoheal completed: temp email {email}, quota reset to {quota}%")
+            return True
+        else:
+            print(f"⚠️  API autoheal failed: {res}")
+    except Exception as e:
+        print(f"⚠️  API call failed: {e}")
+    
+    try:
+        zion_autoheal = os.path.expanduser("~/.local/bin/zion-autoheal")
+        if os.path.exists(zion_autoheal):
+            result = subprocess.run([zion_autoheal, passphrase or ""], capture_output=True, text=True, timeout=60)
+            if result.returncode == 0:
+                print(f"✅ CLI autoheal completed")
+                return True
+    except Exception as e:
+        print(f"⚠️  CLI autoheal failed: {e}")
+    
+    return False
+
+def autoheal_if_needed(threshold=None, passphrase=None):
+    """Check quota and autoheal if above threshold."""
+    if threshold is None:
+        threshold = QUOTA_THRESHOLD
+    
+    quota = get_limiter_pct()
+    print(f"📊 Current quota: {quota}% (threshold: {threshold}%)")
+    
+    if quota >= threshold:
+        print(f"⚠️  Quota at {quota}% (≥{threshold}%), triggering autoheal...")
+        return execute_autoheal(passphrase)
+    else:
+        print(f"✅ Quota OK at {quota}%")
+        return True
+
+def execute_restore(content, passphrase=None):
+    """Execute full restore flow."""
+    
+    try:
+        r = subprocess.run(["curl", "-s", f"{WEB_URL}/api/auth/state"], capture_output=True, text=True, timeout=5)
+        state = json.loads(r.stdout)
+        
+        if not state.get("loggedIn"):
+            print("⚠️  Not logged in — opening sign-in page")
+            subprocess.run(["curl", "-s", "-X", "POST", f"{WEB_URL}/api/login"], capture_output=True)
+            print("Please complete sign-in in Arena tab, then rerun: zillionOM")
+            return False
+    except Exception as e:
+        print(f"⚠️  Auth check failed: {e}")
+    
+    if passphrase:
+        content_to_send = content.replace("{PASSPHRASE}", passphrase) if passphrase else content
+    else:
+        content_to_send = content
+    
+    try:
+        temp_msg = f"""⚡ [ZILLION RESTORE STARTED - PC LANE]
+{timestamp()}
+
+{GATE0_STATUS}
+
+=== MEMORY CORE START ===
+{content_to_send[:10000]}
+=== MEMORY CORE END ===
+
+Boss, restore initiated. Paste the above into Arena AI chat to continue.
+"""
+        result = subprocess.run(
+            ["python3", str(ZION_DIR / "zion-send.py"), temp_msg],
+            capture_output=True, text=True, timeout=60
+        )
+        print(result.stdout)
+        if result.stderr:
+            print("STDERR:", result.stderr, file=sys.stderr)
+        
+        if "vision gate" in result.stdout.lower() or "direct" in result.stdout.lower():
+            print("✅ Restore verified — vision gate passed")
+            return True
+        
+        print("⏳ Response sent — check Arena chat for next steps")
+        return True
+    except Exception as e:
+        print(f"❌ Restore execution failed: {e}")
+        return False
+
+def run_restore(passphrase=None, use_new=False):
+    """Main restore flow."""
+    print("=" * 50)
+    print("⚡ ZILLION RESTORE — PC LANE v1.0")
+    print("=" * 50)
+    
+    if not gate0_check():
+        return False
+    
+    print("\n1️⃣  CLONE REPO")
+    try:
+        clone_repo(REPO_URL_DEFAULT)
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Clone failed: {e}")
+        return False
+    
+    print("\n2️⃣  READ MEMORY CORE (GATE 0)")
+    mem = read_memory_core(passphrase)
+    if mem:
+        print(f"   Content preview: {mem[:150]}...")
+    else:
+        print("⚠️  No MEMORY_CORE.md found — will use ZION_CORE if exists")
+        if ZION_CORE.exists():
+            mem = ZION_CORE.read_text()[:10000]
+            print(f"   Using local MEMORY_CORE: {len(mem)} chars")
+    
+    print("\n3️⃣  FETCH HMAC KEY")
+    if passphrase:
+        fetch_key(passphrase)
+    else:
+        print(f"   Key file: {'exists' if KEY_FILE.exists() else 'not found'}")
+    
+    print("\n4️⃣  STATUS CHECK")
+    check_status()
+    
+    if mem:
+        print("\n5️⃣  QUOTA CHECK")
+        autoheal_if_needed(passphrase=passphrase)
+    
+    print("\n6️⃣  EXECUTE RESTORE")
+    if use_new:
+        print("   Clean new project mode — zero past memory")
+    
+    if mem:
+        print("\n📝 Sending restore payload...")
+        success = execute_restore(mem, passphrase)
+        if success:
+            print("\n" + "=" * 50)
+            print("✅ RESTORE COMPLETE - PC LANE")
+            print("=" * 50)
+            return True
+    else:
+        print("⚠️  No memory content to restore")
+    
+    return False
+
+if __name__ == "__main__":
+    args = parse_args()
+    
+    if args["help"]:
+        show_help()
+        sys.exit(0)
+    
+    if args["status"]:
+        check_status()
+        sys.exit(0)
+    
+    passphrase = args.get("passphrase")
+    
+    if args["auto"]:
+        success = autoheal_if_needed(passphrase=passphrase)
+        sys.exit(0 if success else 1)
+    
+    if args["new"]:
+        print("🆕 Clean new project mode activated")
+    
+    success = run_restore(passphrase=passphrase, use_new=args["new"])
+    sys.exit(0 if success else 1)

@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Zillion CLI — Probe Browser Manager (BUG-4 fix 2026-09-04: HEADFUL Wayland window; headless flag removed — recaptcha 403 kapag headless)
+# Usage: probe_browser.sh [ensure|start|stop|status]
+set -u
+# BUG-8 fix 2026-09-04: self-export Wayland env kapag wala (hub minsan naka-launch walang display env)
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-1}"
+export HYPRLAND_INSTANCE_SIGNATURE="${HYPRLAND_INSTANCE_SIGNATURE:-$(ls "$XDG_RUNTIME_DIR/hypr" 2>/dev/null | head -n 1)}"
+PORT="${ZION_PORT:-9222}"
+PROFILE="$HOME/.config/chromium-zillion-probe"
+ARENA_URL="https://arena.ai/agent"
+UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+
+is_online() {
+  curl -s --max-time 2 "http://127.0.0.1:${PORT}/json/version" >/dev/null 2>&1
+}
+
+case "${1:-status}" in
+  status)
+    if is_online; then echo "ONLINE"; exit 0; else echo "OFFLINE"; exit 1; fi
+    ;;
+  start|ensure)
+    if is_online; then echo "ALREADY ONLINE"; exit 0; fi
+    setsid -f /usr/lib/chromium/chromium \
+      --ozone-platform=wayland \
+      --password-store=gnome-libsecret \
+      --remote-debugging-port="${PORT}" \
+      --remote-allow-origins='*' \
+      --user-data-dir="${PROFILE}" \
+      --user-agent="${UA}" \
+      --disable-gpu \
+      --no-first-run \
+      --no-default-browser-check \
+      --noerrdialogs \
+      "${ARENA_URL}" >/dev/null 2>&1 </dev/null
+    for _ in $(seq 1 24); do
+      sleep 0.5
+      if is_online; then echo "STARTED (headful-wayland, profile=${PROFILE})"; exit 0; fi
+    done
+    echo "FAILED TO START"; exit 1
+    ;;
+  stop)
+    pkill -f "remote-debugging-port=${PORT}" && echo "STOPPED" || echo "NOT RUNNING"
+    ;;
+  restart)
+    "$0" stop >/dev/null 2>&1
+    sleep 1
+    "$0" start
+    ;;
+  *)
+    echo "Usage: probe_browser.sh [ensure|start|stop|restart|status]"
+    exit 2
+    ;;
+esac
