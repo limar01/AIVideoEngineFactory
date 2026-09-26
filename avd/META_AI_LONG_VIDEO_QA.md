@@ -51,10 +51,22 @@ BLOCKED = cannot be tested as designed (reason given) · PENDING = queued.
 | TC-13 | Capture the **media URL** of a generated clip | BLOCKED | rig on ⇒ playback fails; media never loads while intercepting. Workarounds in §6 |
 | TC-14 | Determinism: same prompt twice | filled by the step92 batch | shot1 vs shot1_repeat — same prompt, independent generations; `sha16` compared |
 | TC-15 | Rate limits / spam behaviour | filled by the step92 batch | 5 prompts back-to-back, 12 s apart: no refusal, all rc=0 (latency table in §3) |
-| TC-16 | Explicit duration prompt (*"make a 10 second video"*) | PENDING | expected: ignored — length comes from Extend, not from wording |
+| TC-16 | Explicit duration prompt (*"make a 10 second video"*) | **PASS** | the wording alone generated **nothing**: Meta AI answered *"What do you want the 10 second video to be of? … I'll generate it as a 5 sec clip + extend it to 10 sec for you"*; the follow-up content prompt (*"futuristic city"*) produced the usual **5.208 s / 125 fr** base clip (`sha16 ec417c2e9851f7ff`) — length comes from Extend (§3), not from wording |
 | TC-17 | Audio / lip-sync (the 8 s spec) | OUT OF SCOPE for Meta AI, **covered by the new stage** | Meta AI clips are silent; speech is added by the AI audio engine (`AI_AUDIO_ENGINE.md`) — narration + bed verified on the 60 s film; lip-sync specced (Wav2Lip on the GTX 1060) |
 | TC-19 | Multi-shot film + narration, end to end | **PASS** | 4 scenes (24.667 s extend + 3 × 5.208 s) → **40.315 s** film, then TTS narration + room bed muxed (`multishot_film_narrated.mp4`, 10,485,917 B, h264 + AAC stereo) |
 | TC-18 | Continuity across a stitch (do the pieces belong to one film?) | **PASS** | frame 30 of TC-01 vs frame 395 of the 16.708 s extend: same motorcycle, same street, same style; the camera has moved, no hard cut — evidence `proof/f_tc01.jpg`, `proof/f_tc06.jpg` |
+
+### TC-16 note — what an explicit duration actually buys
+Sending *"make a 10 second video"* (19:30:49) produced **no video** — Meta AI asked for content
+first and then described its own pipeline verbatim: *"I'll generate it as a 5 sec clip + extend it to
+10 sec for you."* The follow-up *"futuristic city"* (19:38:55) rendered the standard base clip:
+**5.208333 s / 125 fr / 624×624 / silent**, manifest row 13 (`sha16 ec417c2e9851f7ff`). So the
+duration wording is parsed and committed to, but it never sets the render length: the first clip is
+always the 5.208 s base, and the requested 10 s exists only as an Extend target (per §3, each extend
+adds what Meta AI decides, +3.83 s early on). Integrity caveat on this one pull: the reel was
+harvested **unplayed** (Play was never needed — the file was already in the cache), 500,000 B and
+stable, `read_frames=12` with 6 decode errors, so the 5.208 s figure is the container header; every
+other fresh clip in the manifest measures the same 5.208333 s with full frame reads.
 
 ### TC-05 note — the important one
 The third extend looked like it had failed (no new file for ~4 minutes, a re-encoded 9.04 s copy
@@ -236,11 +248,13 @@ Device cache (complete assets):
 `2/27943142692032298…` (5.208 s sample) · `3/4013971692078173…` (9.042 s) ·
 `4/1031246199944205…` (5.208 s) · `4/3295041920702572…` (16.708 s) · `5/4576184052594465…` (12.875 s)
 
-PC (`~/factory/clips/`, 17 files): ladder — `tc01_final.mp4` 5.208 s · `tc03_final.mp4` 9.042 s ·
+PC (`~/factory/clips/`, 18 files): ladder — `tc01_final.mp4` 5.208 s · `tc03_final.mp4` 9.042 s ·
 `tc04_final.mp4` 12.875 s · `tc06_extend3.mp4` 16.708 s · `tc07_extend4.mp4` 24.375 s ·
 `tc08_extend5.mp4` 24.667 s; batch — `tc09_moto.mp4` 5,109,587 B · `tc10_city.mp4` 3,510,119 B ·
 `tc11_astro.mp4` 3,524,226 B · `tc12_moto_repeat.mp4` 5,166,834 B (determinism artifact) ·
-`tc13_boat.mp4` 3,369,846 B (all 5.208 s / 125 fr / 624×624 / silent).
+`tc13_boat.mp4` 3,369,846 B (all 5.208 s / 125 fr / 624×624 / silent); TC-16 —
+`1061767050073824.26258344.15b927fb-7fe6-457e-aa74-3516513d39c5.mp4.0.1790422783494.v2.exo.mp4`
+500,000 B / 5.208 s (pulled unplayed — see the TC-16 note).
 (`tc01_motorcycle` / `tc03_extended` / `tc04_extended2` = the early **truncated** pulls, kept only as
 evidence of the failure mode.)
 PC (`~/factory/out/`): `ladder_demo4.mp4` 43.857 s · `ladder5.mp4` 68.232 s / 22.7 MB ·
@@ -260,7 +274,8 @@ Sandbox (this workspace): `factory_multishot_motion2_narrated.mp4` 9,831,726 B (
 `factory_film_60s_preview.mp4` (2.2 MB) · `factory_film_60s_narrated.mp4` 2,676,879 B / 60.27 s ·
 `factory_ladder_5to17s.mp4` (43.9 s preview) · `factory_long_60s.mp4` (81.4 s looped preview) ·
 `metaai_sample_video.mp4` (first clip, 5.208 s)
-Manifest: `~/factory/manifest.jsonl` — **12 rows** (ladder TC-01b…TC-08-extend5 + the five batch shots),
+Manifest: `~/factory/manifest.jsonl` — **13 rows** (ladder TC-01b…TC-08-extend5, the five batch
+shots, and the TC-16 row `futuristic city` / `sha16 ec417c2e9851f7ff` / 500,000 B pulled unplayed),
 each with ts, mode, prompt, file, bytes, duration, video, read_frames, decode_errors, audio, sha16
 Screenshots: `~/Projects/workspace/project/avd/proof/qa_tc00_reply.jpg`,
 `qa_tc01_state.jpg` (prompt sent, placeholder generating), `qa_tc01_error.jpg` ("Couldn't play reel"),
