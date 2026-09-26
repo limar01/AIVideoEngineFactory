@@ -114,3 +114,12 @@ Every stage appends to the same JSONL philosophy already used for clips:
 3. **Lip-sync scope**: (a) install Wav2Lip now (~3–4 GB, GPU present), (b) use a hosted avatar API
    instead, or (c) keep lip-sync out of the automated path and only mux narration?
 4. **Disk**: 11 GB free — approve the Wav2Lip install, or clean the 99 GB used first?
+
+## 7. v1.1 fix (2026-09-27)
+
+- `mux` on a SILENT clip (the factory default) previously died -> 0-byte output: the narrate path mixed
+  against `[0:a]`, an audio stream that does not exist on Meta AI clips. Now: silent clip -> voice alone,
+  delayed, padded to the FULL video length (`-t $D`); the old amix path runs only when the clip has audio.
+- `replace` no longer uses `-shortest` (it trimmed scenes to the voice length — shorter than the declared
+  scene duration).
+- Verified: scene_01 (9.04 s clip + 5.90 s voice) -> A/V 9.04 s with the voice padded to scene length.

@@ -7,6 +7,8 @@
 #   sh audio_engine.sh mux   in.mp4 voice.wav out.mp4 [mode]  narrate (mixed under) | replace
 #   sh audio_engine.sh lipsync in.mp4 voice.wav out.mp4       Wav2Lip if installed, else the install plan
 #
+# v1.1 (2026-09-27): mux now handles SILENT clips (Meta AI default) - voice alone, padded to the
+# full video length; the amix path is used only when the clip really carries audio.
 # Everything here is offline (no network, no API keys). Optional better engines are detected and used
 # automatically when present: piper (neural TTS) > espeak-ng (formant TTS), CUDA torch (fast lip-sync).
 set -u
@@ -15,6 +17,7 @@ espeak_bin()  { command -v espeak-ng || command -v espeak; }
 piper_bin()   { command -v piper; }
 have_cuda()   { command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L 2>/dev/null | grep -q GPU; }
 w2l_dir()     { echo "${WAV2LIP_DIR:-$HOME/tools/Wav2Lip}"; }
+vhasaudio()   { ffprobe -v error -select_streams a -show_entries stream=index -of csv=p=0 "$1" 2>/dev/null | grep -q .; }
 norm() { ffmpeg -hide_banner -loglevel error -y -i "$1" -af "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=44100" -ac 2 "$2"; }
 
 cmd="${1:-check}"; shift 2>/dev/null || true
@@ -55,12 +58,20 @@ bed)   # $1 out.wav  $2 seconds  [$3 style: room|wind|hum]
 
 mux)   # $1 video  $2 voice.wav  $3 out.mp4  [$4 narrate|replace]
   V="${1:?video}"; A="${2:?audio}"; OUT="${3:?out.mp4}"; MODE="${4:-narrate}"
-  if [ "$MODE" = replace ]; then
-    ffmpeg -hide_banner -loglevel error -y -i "$V" -i "$A" -map 0:v -map 1:a -c:v copy -c:a aac -b:a 160k -shortest -movflags +faststart "$OUT"
-  else
+  D=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$V")
+  if [ "$MODE" != replace ] && vhasaudio "$V"; then
+    # clip carries audio: mix the voice UNDER it
     ffmpeg -hide_banner -loglevel error -y -i "$V" -i "$A" \
       -filter_complex "[1:a]adelay=${DELAY_MS:-800}|${DELAY_MS:-800},apad[a1];[0:a][a1]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]" \
       -map 0:v -map "[a]" -c:v copy -c:a aac -b:a 160k -movflags +faststart "$OUT"
+  else
+    # silent clip (the factory default) or replace: voice alone -- delayed, padded to the VIDEO length.
+    # v1.1 fix: must NOT use -shortest here; that trimmed scenes to the voice length (shorter than the
+    # declared scene duration) and the amix path died outright on clips with no audio stream (0-byte out).
+    ffmpeg -hide_banner -loglevel error -y -i "$V" -i "$A" \
+      -filter_complex "[1:a]adelay=${DELAY_MS:-800}|${DELAY_MS:-800},apad[a]" \
+      -map 0:v -map "[a]" -c:v copy -c:a aac -b:a 160k -t "$D" -movflags +faststart "$OUT"
+    [ "$MODE" = replace ] || printf 'MUX: clip has no audio -> voice on the full %.2fs video length\n' "$D"
   fi
   printf 'MUX %s -> %s (mode=%s)\n' "$(basename "$V")" "$OUT" "$MODE"
   ffprobe -v error -show_entries format=duration:stream=codec_name,channels -of default=nw=1 "$OUT" | tr '\n' ' '; echo
